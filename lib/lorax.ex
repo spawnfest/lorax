@@ -30,12 +30,7 @@ defmodule Lorax do
 
     Enum.reduce(target_nodes, axon, fn target_id, %Axon{nodes: acc_nodes} = acc ->
       # Grab our target node, create a fake Axon container for it
-      # IO.inspect(target_id)
-
-      target_node =
-        acc_nodes[target_id]
-        # |> IO.inspect(label: "target_node")
-
+      target_node = acc_nodes[target_id]
       target_axon = %Axon{acc | output: target_id}
 
       # Get its parent and create fake Axon containers
@@ -110,7 +105,6 @@ defmodule Lorax do
   defp get_target_nodes(axon, filter_node_fn) do
     Axon.reduce_nodes(axon, [], fn %Axon.Node{id: id} = node, acc ->
       if filter_node_fn.(node) do
-        # IO.inspect(node, label: "adding this node")
         [id | acc]
       else
         acc

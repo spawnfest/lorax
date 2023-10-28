@@ -19,21 +19,7 @@ Nx.default_backend(EXLA.Backend)
 
 ## Introduction
 
-Fine-tuning is the process of specializing the parameters in a pre-trained model to a specific task. Large-language models such as BERT train on a generic langauge-modeling task which makes them powerful at extracting features from text. Despite their power, you often still need to train them on a downstream task.
-
-This example demonstrates how to use Bumblebee and Axon to fine-tune a pre-trained Bert model to classify Yelp reviews into classes of 1-5 stars. This example is based on [Fine-tune a pretrained model](https://huggingface.co/docs/transformers/training) from Huggingface.
-
-You'll need to first download the Yelp Reviews dataset ([download](https://s3.amazonaws.com/fast-ai-nlp/yelp_review_full_csv.tgz)).
-
-Once downloaded, extract it to a directory of your choosing and you're ready to go!
-
 ## Load a model
-
-We'll start by loading a pre-trained model and tokenizer; however, we'll initialize the model to have an untrained sequence classification head.
-
-Reviews in the dataset can have anywhere from 1 to 5 stars, which means we need 5 labels in our sequence classification head. We can change the default configuration by loading the model spec with `Bumblebee.load_spec/2` and making changes to spec properties with `Bumblebee.configure/2`.
-
-The pre-trained model we'll be using is `bert-base-cased`; however, you can use any of the supported models from the HuggingFace Hub.
 
 ```elixir
 {:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
@@ -66,6 +52,8 @@ The pre-trained model we'll be using is `bert-base-cased`; however, you can use 
  }}
 ```
 
+## Prepare a dataset
+
 ```elixir
 # text = Kino.Input.textarea("Text Data")
 text =
@@ -79,16 +67,6 @@ text =
 ```
 "First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?\n\nAll:\nResolved. resolved.\n\nFirst Citizen:\nFirst, you know Caius Marcius is chief enemy to the people.\n\nAll:\nWe know't, we know't.\n\nFirst Citizen:\nLet us kill him, and we'll have corn at our own price.\nIs't a verdict?\n\nAll:\nNo more talking on't; let it be done: away, away!\n\nSecond Citizen:\nOne word, good citizens.\n\nFirst Citizen:\nWe are accounted poor citizens, the patricians good.\nWhat authority surfeits on would relieve us: if they\nwould yield us but the superfluity, while it were\nwholesome, we might guess they relieved us humanely;\nbut they think we are too dear: the leanness that\nafflicts us, the object of our misery, is as an\ninventory to particularise their abundance; our\nsufferance is a gain to them Let us revenge this with\nour pikes, ere we become rakes: for the gods know I\nspeak this in hunger for bread, not in thirst for revenge.\n\nSecond Citizen:\nWould you proceed especially against Caius Marcius?\n\nAll:\nAgainst him first: he's a very dog to the commonalty.\n\nSecond Citizen:\nConsider you what services he has done for his country?\n\nFirst Citizen:\nVery well; and could be content to give him good\nreport fort, but that he pays himself with being proud.\n\nSecond Citizen:\nNay, but speak not maliciously.\n\nFirst Citizen:\nI say unto you, what he hath done famously, he did\nit to that end: though soft-conscienced men can be\ncontent to say it was for his country he did it to\nplease his mother and to be partly proud; which he\nis, even till the altitude of his virtue.\n\nSecond Citizen:\nWhat he cannot help in his nature, you account a\nvice in him. You must in no way say he is covetous.\n\nFirst Citizen:\nIf I must not, I need not be barren of accusations;\nhe hath faults, with surplus, to tire in repetition.\nWhat shouts are these? The other side o' the city\nis risen: why stay we prating here? to the Capitol!\n\nAll:\nCome, come.\n\nFirst Citizen:\nSoft! who comes here?\n\nSecond Citizen:\nWorthy Menenius Agrippa; one that hath always loved\nthe people.\n\nFirst Citizen:\nHe's one honest enough: would all the rest were so!\n\nMENENIUS:\nWhat work's, my countrymen, in hand? where go you\nWith bats and clubs? The matter? speak, I pray you.\n\nFirst Citizen:\nOur business is not unknown to the senate; they have\nhad inkling this fortnight what we intend to do,\nwhich now we'll show 'em in deeds. They say poor\nsuitors have strong breaths: they shall know we\nhave strong arms too.\n\nMENENIUS:\nWhy, masters, my good friends, mine honest neighbours,\nWill you undo yourselves?\n\nFirst Citizen:\nWe cannot, sir, we are undone already.\n\nMENENIUS:\nI tell you, friends, most charitable care\nHave the patricians of you. For your wants,\nYour suffering in this dearth, you may as well\nStrike at the heaven with your staves as lift them\nAgainst the Roman state, whose course will on\nThe way it takes, cracking ten thousand curbs\nOf more strong link asunder than can ever\nAppear in your impediment. For the dearth,\nThe gods, not the patricians, make it, and\nYour knees to them, not arms, must help. Alack,\nYou are transported by calamity\nThither where more attends you, and you slander\nThe helms o' the state, who care for you like fathers,\nWhen you curse them as enemies.\n\nFirst Citizen:\nCare for us! True, indeed! They ne'er cared for us\nyet: suffer us to famish, and their store-houses\ncrammed with grain; make edicts for usury, to\nsupport usurers; repeal daily any wholesome act\nestablished against the rich, and provide more\npiercing statutes daily, to chain up and restrain\nthe poor. If the wars eat us not up, they will; and\nthere's all the love they bear us.\n\nMENENIUS:\nEither you must\nConfess yourselves wondrous malicious,\nOr be accused of folly. I shall tell you\nA pretty tale: it may be you have heard it;\nBut, since it serves my purpose, I will venture\nTo stale 't a little more.\n\nFirst Citizen:\nWell, I'll hear it, sir: yet you must not think to\nfob off our disgrace with a tale: but, an 't please\nyou, deliver.\n\nMENENIUS:\nThere was a time when all " <> ...
 ```
-
-## Prepare a dataset
-
-With the models downloaded and ready to go, you need to prepare the dataset. The downloaded dataset is a CSV. You can use the `Explorer` library to quickly load the CSV into a DataFrame.
-
-Once the data is loaded, you need to convert raw text to tokens and the raw labels to tensors. Additionally, you need to convert the DataFrame to a Stream consisting of tuples: `{tokenized, labels}` - that is the form expected by Axon's training API.
-
-<!-- livebook:{"break_markdown":true} -->
-
-Now you can use the `Yelp.load/2` function to load a training set and a testing set:
 
 ```elixir
 batch_size = 4
@@ -269,7 +247,7 @@ Axon.get_output_shape(model, input)
 }
 ```
 
-For training, we only care about the `:logits` key, so we'll extract that by attaching an `Axon.nx/2` layer to the model:
+For training LoRA adapters, we'll freeze the original layers, and append adapters to our target nodes
 
 ```elixir
 lora_model =
@@ -372,7 +350,7 @@ end
 custom_predict_fn = &CommonTrain.custom_predict_fn(predict_fn, &1, &2)
 custom_loss_fn = &CommonTrain.custom_loss_fn(&1, &2)
 
-params =
+lora_params =
   {init_fn, custom_predict_fn}
   |> Axon.Loop.trainer(custom_loss_fn, Polaris.Optimizers.adam(learning_rate: 5.0e-5))
   |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 10000, compiler: EXLA)
@@ -383,143 +361,5 @@ params =
 ```
 
 13:06:09.435 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-Epoch: 0, Batch: 0, loss: 0.0000000
-```
-
-The call to trainer just returns a data structure. In Axon, we manipulate this data structure to control different parts of the loop. For example, you can attach metrics:
-
-```elixir
-accuracy = &Axon.Metrics.accuracy(&1, &2, from_logits: true, sparse: true)
-
-loop = Axon.Loop.metric(loop, accuracy, "accuracy")
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Axon.Loop<
-  metrics: %{
-    "accuracy" => {#Function<11.3813108/3 in Axon.Metrics.running_average/1>,
-     #Function<41.3316493/2 in :erl_eval.expr/6>},
-    "loss" => {#Function<11.3813108/3 in Axon.Metrics.running_average/1>,
-     #Function<41.3316493/2 in :erl_eval.expr/6>}
-  },
-  handlers: %{
-    completed: [],
-    epoch_completed: [
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<6.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    epoch_halted: [],
-    epoch_started: [],
-    halted: [],
-    iteration_completed: [
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<64.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    iteration_started: [],
-    started: []
-  },
-  ...
->
-```
-
-And you can attach event handlers to do certain things, such as serialize the loop state at regular intervals so you don't lose your progress:
-
-```elixir
-loop = Axon.Loop.checkpoint(loop, event: :epoch_completed)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Axon.Loop<
-  metrics: %{
-    "accuracy" => {#Function<11.3813108/3 in Axon.Metrics.running_average/1>,
-     #Function<41.3316493/2 in :erl_eval.expr/6>},
-    "loss" => {#Function<11.3813108/3 in Axon.Metrics.running_average/1>,
-     #Function<41.3316493/2 in :erl_eval.expr/6>}
-  },
-  handlers: %{
-    completed: [],
-    epoch_completed: [
-      {#Function<17.14409478/1 in Axon.Loop.checkpoint/2>,
-       #Function<6.14409478/2 in Axon.Loop.build_filter_fn/1>},
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<6.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    epoch_halted: [],
-    epoch_started: [],
-    halted: [],
-    iteration_completed: [
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<64.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    iteration_started: [],
-    started: []
-  },
-  ...
->
-```
-
-To run the loop, you just need to call `Axon.Loop.run/4`. `Axon.Loop.run/4` takes a loop, input data, and any initial state (in this case initial parameters). You can kind of think of `Axon.Loop.run/4` as an `Enum.reduce/3`. It takes data, an accumulator, and a function - which map to `Loop.run/4` input data, initial state, and the actual loop data structure.
-
-You'll commonly see loops written out in long chains using Elixir's `|>` operator, like this:
-
-```elixir
-trained_model_state =
-  logits_model
-  |> Axon.Loop.trainer(loss, optimizer, log: 1)
-  |> Axon.Loop.metric(accuracy, "accuracy")
-  |> Axon.Loop.checkpoint(event: :epoch_completed)
-  |> Axon.Loop.run(train_data, params, epochs: 3, compiler: EXLA, strict?: false)
-
-:ok
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-
-02:46:02.170 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-Epoch: 0, Batch: 249, accuracy: 0.3462500 loss: 1.2216607
-Epoch: 1, Batch: 249, accuracy: 0.5186251 loss: 1.0558304
-Epoch: 2, Batch: 249, accuracy: 0.6236249 loss: 0.9317472
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
-## Evaluating the model
-
-The training loop returns the final model state after training over your dataset for the given number of epochs. Axon uses the same `Axon.Loop` API to create evaluation loops as well. You can create one with the `Axon.Loop.evaluator/1` factory, instrument it with metrics, and run it on your data with your trained model state:
-
-```elixir
-logits_model
-|> Axon.Loop.evaluator()
-|> Axon.Loop.metric(accuracy, "accuracy")
-|> Axon.Loop.run(test_data, trained_model_state, compiler: EXLA)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-Batch: 49, accuracy: 0.3675000
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-%{
-  0 => %{
-    "accuracy" => #Nx.Tensor<
-      f32
-      EXLA.Backend<host:0, 0.446408219.3911319572.169449>
-      0.36750003695487976
-    >
-  }
-}
+Epoch: 0, Batch: 50, loss: 5.1121383
 ```
