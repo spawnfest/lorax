@@ -9,7 +9,9 @@ Mix.install([
   {:nx, "~> 0.6.1"},
   {:exla, "~> 0.6.1"},
   {:explorer, "~> 0.7.0"},
-  {:lorax, path: "/Users/ted/CS/elixir/lorax"}
+  {:lorax, path: "/Users/ted/CS/elixir/lorax"},
+  {:req, "~> 0.4.0"},
+  {:kino, "~> 0.11.0"}
 ])
 
 Nx.default_backend(EXLA.Backend)
@@ -34,55 +36,56 @@ Reviews in the dataset can have anywhere from 1 to 5 stars, which means we need 
 The pre-trained model we'll be using is `bert-base-cased`; however, you can use any of the supported models from the HuggingFace Hub.
 
 ```elixir
-{:ok, spec} =
-  Bumblebee.load_spec({:hf, "bert-base-cased"},
-    architecture: :for_sequence_classification
-  )
-
-spec = Bumblebee.configure(spec, num_labels: 5)
-
-{:ok, model} = Bumblebee.load_model({:hf, "bert-base-cased"}, spec: spec)
-{:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "bert-base-cased"})
+{:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
+{:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
+{:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
 
-14:41:33.314 [info] TfrtCpuClient created.
+21:14:19.868 [info] TfrtCpuClient created.
 
-14:41:33.820 [debug] the following parameters were missing:
-
-  * sequence_classification_head.output.kernel
-  * sequence_classification_head.output.bias
-
-
-14:41:33.820 [debug] the following PyTorch parameters were unused:
-
-  * cls.predictions.bias
-  * cls.predictions.decoder.weight
-  * cls.predictions.transform.LayerNorm.beta
-  * cls.predictions.transform.LayerNorm.gamma
-  * cls.predictions.transform.dense.bias
-  * cls.predictions.transform.dense.weight
-  * cls.seq_relationship.bias
-  * cls.seq_relationship.weight
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
 {:ok,
- %Bumblebee.Text.BertTokenizer{
+ %Bumblebee.Text.Gpt2Tokenizer{
    tokenizer: #Tokenizers.Tokenizer<[
-     vocab_size: 28996,
-     continuing_subword_prefix: "##",
-     max_input_chars_per_word: 100,
+     vocab_size: 50257,
+     byte_fallback: false,
+     continuing_subword_prefix: "",
+     dropout: nil,
+     end_of_word_suffix: "",
+     fuse_unk: false,
      model_type: "bpe",
-     unk_token: "[UNK]"
+     unk_token: nil
    ]>,
-   special_tokens: %{cls: "[CLS]", mask: "[MASK]", pad: "[PAD]", sep: "[SEP]", unk: "[UNK]"}
+   special_tokens: %{
+     pad: "<|endoftext|>",
+     bos: "<|endoftext|>",
+     eos: "<|endoftext|>",
+     unk: "<|endoftext|>"
+   },
+   additional_special_tokens: []
  }}
+```
+
+```elixir
+# text = Kino.Input.textarea("Text Data")
+text =
+  Req.get!(
+    "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+  ).body
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?\n\nAll:\nResolved. resolved.\n\nFirst Citizen:\nFirst, you know Caius Marcius is chief enemy to the people.\n\nAll:\nWe know't, we know't.\n\nFirst Citizen:\nLet us kill him, and we'll have corn at our own price.\nIs't a verdict?\n\nAll:\nNo more talking on't; let it be done: away, away!\n\nSecond Citizen:\nOne word, good citizens.\n\nFirst Citizen:\nWe are accounted poor citizens, the patricians good.\nWhat authority surfeits on would relieve us: if they\nwould yield us but the superfluity, while it were\nwholesome, we might guess they relieved us humanely;\nbut they think we are too dear: the leanness that\nafflicts us, the object of our misery, is as an\ninventory to particularise their abundance; our\nsufferance is a gain to them Let us revenge this with\nour pikes, ere we become rakes: for the gods know I\nspeak this in hunger for bread, not in thirst for revenge.\n\nSecond Citizen:\nWould you proceed especially against Caius Marcius?\n\nAll:\nAgainst him first: he's a very dog to the commonalty.\n\nSecond Citizen:\nConsider you what services he has done for his country?\n\nFirst Citizen:\nVery well; and could be content to give him good\nreport fort, but that he pays himself with being proud.\n\nSecond Citizen:\nNay, but speak not maliciously.\n\nFirst Citizen:\nI say unto you, what he hath done famously, he did\nit to that end: though soft-conscienced men can be\ncontent to say it was for his country he did it to\nplease his mother and to be partly proud; which he\nis, even till the altitude of his virtue.\n\nSecond Citizen:\nWhat he cannot help in his nature, you account a\nvice in him. You must in no way say he is covetous.\n\nFirst Citizen:\nIf I must not, I need not be barren of accusations;\nhe hath faults, with surplus, to tire in repetition.\nWhat shouts are these? The other side o' the city\nis risen: why stay we prating here? to the Capitol!\n\nAll:\nCome, come.\n\nFirst Citizen:\nSoft! who comes here?\n\nSecond Citizen:\nWorthy Menenius Agrippa; one that hath always loved\nthe people.\n\nFirst Citizen:\nHe's one honest enough: would all the rest were so!\n\nMENENIUS:\nWhat work's, my countrymen, in hand? where go you\nWith bats and clubs? The matter? speak, I pray you.\n\nFirst Citizen:\nOur business is not unknown to the senate; they have\nhad inkling this fortnight what we intend to do,\nwhich now we'll show 'em in deeds. They say poor\nsuitors have strong breaths: they shall know we\nhave strong arms too.\n\nMENENIUS:\nWhy, masters, my good friends, mine honest neighbours,\nWill you undo yourselves?\n\nFirst Citizen:\nWe cannot, sir, we are undone already.\n\nMENENIUS:\nI tell you, friends, most charitable care\nHave the patricians of you. For your wants,\nYour suffering in this dearth, you may as well\nStrike at the heaven with your staves as lift them\nAgainst the Roman state, whose course will on\nThe way it takes, cracking ten thousand curbs\nOf more strong link asunder than can ever\nAppear in your impediment. For the dearth,\nThe gods, not the patricians, make it, and\nYour knees to them, not arms, must help. Alack,\nYou are transported by calamity\nThither where more attends you, and you slander\nThe helms o' the state, who care for you like fathers,\nWhen you curse them as enemies.\n\nFirst Citizen:\nCare for us! True, indeed! They ne'er cared for us\nyet: suffer us to famish, and their store-houses\ncrammed with grain; make edicts for usury, to\nsupport usurers; repeal daily any wholesome act\nestablished against the rich, and provide more\npiercing statutes daily, to chain up and restrain\nthe poor. If the wars eat us not up, they will; and\nthere's all the love they bear us.\n\nMENENIUS:\nEither you must\nConfess yourselves wondrous malicious,\nOr be accused of folly. I shall tell you\nA pretty tale: it may be you have heard it;\nBut, since it serves my purpose, I will venture\nTo stale 't a little more.\n\nFirst Citizen:\nWell, I'll hear it, sir: yet you must not think to\nfob off our disgrace with a tale: but, an 't please\nyou, deliver.\n\nMENENIUS:\nThere was a time when all " <> ...
 ```
 
 ## Prepare a dataset
@@ -91,33 +94,109 @@ With the models downloaded and ready to go, you need to prepare the dataset. The
 
 Once the data is loaded, you need to convert raw text to tokens and the raw labels to tensors. Additionally, you need to convert the DataFrame to a Stream consisting of tuples: `{tokenized, labels}` - that is the form expected by Axon's training API.
 
+<!-- livebook:{"break_markdown":true} -->
+
+Now you can use the `Yelp.load/2` function to load a training set and a testing set:
+
 ```elixir
-defmodule Yelp do
-  def load(path, tokenizer, opts \\ []) do
-    path
-    |> Explorer.DataFrame.from_csv!(header: false)
-    |> Explorer.DataFrame.rename(["label", "text"])
-    |> stream()
-    |> tokenize_and_batch(tokenizer, opts[:batch_size], opts[:sequence_length])
+batch_size = 4
+sequence_length = 64
+
+tokenized_text = %{"input_ids" => input_ids} = Bumblebee.apply_tokenizer(tokenizer, text)
+n_tokens = Nx.size(input_ids)
+n_train = round(n_tokens * 0.9)
+n_val = n_tokens - n_train
+
+train_data =
+  for {input_key, tokenized_values} <- tokenized_text, into: %{} do
+    {input_key, Nx.slice_along_axis(tokenized_values, 0, n_train, axis: -1)}
   end
 
-  def stream(df) do
-    xs = df["text"]
-    ys = df["label"]
-
-    xs
-    |> Explorer.Series.to_enum()
-    |> Stream.zip(Explorer.Series.to_enum(ys))
+test_data =
+  for {input_key, tokenized_values} <- tokenized_text, into: %{} do
+    {input_key, Nx.slice_along_axis(tokenized_values, n_train, n_val, axis: -1)}
   end
+```
 
-  def tokenize_and_batch(stream, tokenizer, batch_size, sequence_length) do
-    stream
-    |> Stream.chunk_every(batch_size)
-    |> Stream.map(fn batch ->
-      {text, labels} = Enum.unzip(batch)
-      tokenized = Bumblebee.apply_tokenizer(tokenizer, text, length: sequence_length)
-      {tokenized, Nx.stack(labels)}
-    end)
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "attention_mask" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<host:0, 0.3594301091.1681522703.216578>
+    [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
+    ]
+  >,
+  "input_ids" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<host:0, 0.3594301091.1681522703.216579>
+    [
+      [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
+    ]
+  >,
+  "token_type_ids" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<host:0, 0.3594301091.1681522703.216580>
+    [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
+    ]
+  >
+}
+```
+
+```elixir
+defmodule DataStream do
+  def get_batch_stream(%{"input_ids" => input_ids} = data, batch_size, block_size, opts \\ []) do
+    seed = Keyword.get(opts, :seed, 1337)
+
+    Stream.resource(
+      # initialization function
+      fn ->
+        Nx.Random.key(seed)
+      end,
+      # generation function
+      fn key ->
+        {_b, t} = Nx.shape(input_ids)
+
+        data =
+          for {k, v} <- data, into: %{} do
+            {k, Nx.reshape(v, {t})}
+          end
+
+        # ix = list of random starting indices
+        {ix, new_key} =
+          Nx.Random.randint(key, 0, t - block_size, shape: {batch_size}, type: :u32)
+
+        ix = Nx.to_list(ix)
+
+        # x is map of sliced tensors
+        x =
+          for {k, tensor} <- data, into: %{} do
+            batch_slice =
+              ix
+              |> Enum.map(fn i -> Nx.slice_along_axis(tensor, i, block_size, axis: -1) end)
+              |> Nx.stack()
+
+            {k, batch_slice}
+          end
+
+        # y represents all the predicted next tokens (input_ids shifted by 1) 
+        y =
+          ix
+          |> Enum.map(fn i ->
+            data["input_ids"] |> Nx.slice_along_axis(i + 1, block_size, axis: -1)
+          end)
+          |> Nx.stack()
+          |> Nx.flatten()
+
+        out_data = {x, y}
+
+        {[out_data], new_key}
+      end,
+      fn _ -> :ok end
+    )
   end
 end
 ```
@@ -125,96 +204,38 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Yelp, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:tokenize_and_batch, 4}}
-```
-
-Now you can use the `Yelp.load/2` function to load a training set and a testing set:
-
-```elixir
-batch_size = 32
-sequence_length = 64
-
-train_data =
-  Yelp.load("~/yelp/yelp_review_full_csv/train.csv", tokenizer,
-    batch_size: batch_size,
-    sequence_length: sequence_length
-  )
-
-test_data =
-  Yelp.load("~/yelp/yelp_review_full_csv/test.csv", tokenizer,
-    batch_size: batch_size,
-    sequence_length: sequence_length
-  )
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Stream<[
-  enum: #Stream<[
-    enum: #Function<73.124013645/2 in Stream.zip_with/2>,
-    funs: [#Function<3.124013645/1 in Stream.chunk_while/4>]
-  ]>,
-  funs: [#Function<48.124013645/1 in Stream.map/2>]
-]>
+{:module, DataStream, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:get_batch_stream, 4}}
 ```
 
 You can see what a single batch looks like by grabbing 1 from the stream:
 
 ```elixir
-Enum.take(train_data, 1)
+train_batch_stream = DataStream.get_batch_stream(train_data, batch_size, sequence_length)
+test_batch_stream = DataStream.get_batch_stream(test_data, batch_size, sequence_length)
+
+[{x, y}] = train_batch_stream |> Enum.take(1)
+[{x_val, y_val}] = test_batch_stream |> Enum.take(1)
+
+Bumblebee.Tokenizer.decode(tokenizer, x["input_ids"]) |> IO.inspect()
+IO.puts("=====")
+Bumblebee.Tokenizer.decode(tokenizer, y) |> IO.inspect()
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-[
-  {%{
-     "attention_mask" => #Nx.Tensor<
-       s64[32][64]
-       EXLA.Backend<host:0, 0.801663575.1558315030.66545>
-       [
-         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...],
-         ...
-       ]
-     >,
-     "input_ids" => #Nx.Tensor<
-       s64[32][64]
-       EXLA.Backend<host:0, 0.801663575.1558315030.66544>
-       [
-         [101, 173, 1197, 119, 2284, 2953, 3272, 1917, 178, 1440, 1111, 1107, 170, 1704, 22351, 119, 1119, 112, 188, 3505, 1105, 3123, 1106, 2037, 1106, 1443, 1217, 10063, 4404, 132, 1119, 112, 188, 1579, 1113, 1159, 1107, 3195, 1117, 4420, 132, 1119, 112, 188, 6559, 1114, ...],
-         ...
-       ]
-     >,
-     "token_type_ids" => #Nx.Tensor<
-       s64[32][64]
-       EXLA.Backend<host:0, 0.801663575.1558315030.66546>
-       [
-         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...],
-         ...
-       ]
-     >
-   },
-   #Nx.Tensor<
-     s64[32]
-     EXLA.Backend<host:0, 0.801663575.1558315028.66360>
-     [5, 2, 4, 4, 1, 5, 5, 1, 2, 3, 1, 1, 4, 2, 5, 5, 5, 5, 5, 5, 4, 3, 2, 5, 1, 1, 1, 2, 2, 4, 2, 2]
-   >}
-]
-```
-
-The dataset is rather large for CPU training, so we'll just train a small subset (250 training batches and 50 testing batches):
-
-```elixir
-train_data = Enum.take(train_data, 250)
-test_data = Enum.take(test_data, 50)
-:ok
+[" set down your honourable load,\nIf honour may be shrouded in a hearse,\nWhilst I awhile obsequiously lament\nThe untimely fall of virtuous Lancaster.\nPoor key-cold figure of a holy king!\nPale ashes of the house of Lancaster!\nThou bloodless remnant",
+ "Post:\nAy, gracious sovereign; they are so link'd in\nfriendship\nThat young Prince Edward marries Warwick's daughter.\n\nCLARENCE:\nBelike the elder; Clarence will have the younger.\nNow, brother king, farewell, and sit you fast,\nFor I will hence",
+ "And here he comes.\nAll hail, my sovereign liege!\n\nKING RICHARD III:\nKind Tyrrel, am I happy in thy news?\n\nTYRREL:\nIf to have done the thing you gave in charge\nBeget your happiness, be happy then,\nFor it",
+ "Thou frantic woman, what dost thou make here?\nShall thy old dugs once more a traitor rear?\n\nDUCHESS OF YORK:\nSweet York, be patient. Hear me, gentle liege.\n\nHENRY BOLINGBROKE:\nRise up"]
+=====
+" down your honourable load,\nIf honour may be shrouded in a hearse,\nWhilst I awhile obsequiously lament\nThe untimely fall of virtuous Lancaster.\nPoor key-cold figure of a holy king!\nPale ashes of the house of Lancaster!\nThou bloodless remnant of:\nAy, gracious sovereign; they are so link'd in\nfriendship\nThat young Prince Edward marries Warwick's daughter.\n\nCLARENCE:\nBelike the elder; Clarence will have the younger.\nNow, brother king, farewell, and sit you fast,\nFor I will hence to here he comes.\nAll hail, my sovereign liege!\n\nKING RICHARD III:\nKind Tyrrel, am I happy in thy news?\n\nTYRREL:\nIf to have done the thing you gave in charge\nBeget your happiness, be happy then,\nFor it isou frantic woman, what dost thou make here?\nShall thy old dugs once more a traitor rear?\n\nDUCHESS OF YORK:\nSweet York, be patient. Hear me, gentle liege.\n\nHENRY BOLINGBROKE:\nRise up,"
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-:ok
+" down your honourable load,\nIf honour may be shrouded in a hearse,\nWhilst I awhile obsequiously lament\nThe untimely fall of virtuous Lancaster.\nPoor key-cold figure of a holy king!\nPale ashes of the house of Lancaster!\nThou bloodless remnant of:\nAy, gracious sovereign; they are so link'd in\nfriendship\nThat young Prince Edward marries Warwick's daughter.\n\nCLARENCE:\nBelike the elder; Clarence will have the younger.\nNow, brother king, farewell, and sit you fast,\nFor I will hence to here he comes.\nAll hail, my sovereign liege!\n\nKING RICHARD III:\nKind Tyrrel, am I happy in thy news?\n\nTYRREL:\nIf to have done the thing you gave in charge\nBeget your happiness, be happy then,\nFor it isou frantic woman, what dost thou make here?\nShall thy old dugs once more a traitor rear?\n\nDUCHESS OF YORK:\nSweet York, be patient. Hear me, gentle liege.\n\nHENRY BOLINGBROKE:\nRise up,"
 ```
 
 ## Train the model
@@ -231,23 +252,29 @@ model
 
 ```
 #Axon<
-  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}, "token_type_ids" => {nil, nil}}
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
   outputs: "container_37"
-  nodes: 790
+  nodes: 859
 >
 ```
 
 The Axon model actually outputs a map with `:logits`, `:hidden_states`, and `:attentions`. You can see this by using `Axon.get_output_shape/2` with an input. This method symbolically executes the graph and gets the resulting shapes:
 
 ```elixir
-[{input, _}] = Enum.take(train_data, 1)
+[{input, _}] = Enum.take(train_batch_stream, 1)
 Axon.get_output_shape(model, input)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-%{attentions: #Axon.None<...>, hidden_states: #Axon.None<...>, logits: {32, 5}}
+%{
+  cache: #Axon.None<...>,
+  logits: {4, 64, 50257},
+  cross_attentions: #Axon.None<...>,
+  hidden_states: #Axon.None<...>,
+  attentions: #Axon.None<...>
+}
 ```
 
 For training, we only care about the `:logits` key, so we'll extract that by attaching an `Axon.nx/2` layer to the model:
