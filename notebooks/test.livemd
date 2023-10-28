@@ -45,7 +45,7 @@ The pre-trained model we'll be using is `bert-base-cased`; however, you can use 
 
 ```
 
-21:14:19.868 [info] TfrtCpuClient created.
+00:11:39.140 [info] TfrtCpuClient created.
 
 ```
 
@@ -66,8 +66,8 @@ The pre-trained model we'll be using is `bert-base-cased`; however, you can use 
    ]>,
    special_tokens: %{
      pad: "<|endoftext|>",
-     bos: "<|endoftext|>",
      eos: "<|endoftext|>",
+     bos: "<|endoftext|>",
      unk: "<|endoftext|>"
    },
    additional_special_tokens: []
@@ -124,21 +124,21 @@ test_data =
 %{
   "attention_mask" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.3594301091.1681522703.216578>
+    EXLA.Backend<host:0, 0.680840265.903741456.192428>
     [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
     ]
   >,
   "input_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.3594301091.1681522703.216579>
+    EXLA.Backend<host:0, 0.680840265.903741456.192429>
     [
       [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
     ]
   >,
   "token_type_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.3594301091.1681522703.216580>
+    EXLA.Backend<host:0, 0.680840265.903741456.192430>
     [
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
     ]
@@ -270,70 +270,74 @@ Axon.get_output_shape(model, input)
 ```
 %{
   cache: #Axon.None<...>,
-  logits: {4, 64, 50257},
-  cross_attentions: #Axon.None<...>,
   hidden_states: #Axon.None<...>,
-  attentions: #Axon.None<...>
+  attentions: #Axon.None<...>,
+  cross_attentions: #Axon.None<...>,
+  logits: {4, 64, 50257}
 }
 ```
 
 For training, we only care about the `:logits` key, so we'll extract that by attaching an `Axon.nx/2` layer to the model:
 
 ```elixir
-logits_model = Axon.nx(model, & &1.logits)
+lora_model =
+  model
+  |> Axon.freeze()
+  |> Lorax.foo()
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
 #Axon<
-  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}, "token_type_ids" => {nil, nil}}
-  outputs: "nx_0"
-  nodes: 791
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
+  outputs: "container_37"
+  nodes: 859
 >
 ```
 
 Now we can declare our training loop. You can construct Axon training loops using the `Axon.Loop.trainer/3` factory method with a model, loss function, and optimizer. We'll also adjust the log-settings to more frequently log metrics to standard out:
 
 ```elixir
-loss =
-  &Axon.Losses.categorical_cross_entropy(&1, &2,
-    reduction: :mean,
-    from_logits: true,
-    sparse: true
-  )
+defmodule CommonTrain do
+  import Nx.Defn
 
-optimizer = Polaris.Optimizers.adam(learning_rate: 5.0e-5)
+  defn custom_predict_fn(model_predict_fn, params, input) do
+    %{prediction: preds} = out = model_predict_fn.(params, input)
 
-loop = Axon.Loop.trainer(logits_model, loss, optimizer, log: 1)
+    # Output of GPT2 model is a map containing logits and other tensors
+    logits = preds.logits
+
+    {b, t, c} = Nx.shape(logits)
+    reshaped = Nx.reshape(logits, {b * t, c})
+    %{out | prediction: reshaped}
+  end
+
+  def custom_loss_fn(y_true, y_pred) do
+    Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+      from_logits: true,
+      sparse: true,
+      reduction: :mean
+    )
+  end
+end
+
+{init_fn, predict_fn} = Axon.build(lora_model, mode: :train)
+custom_predict_fn = &CommonTrain.custom_predict_fn(predict_fn, &1, &2)
+custom_loss_fn = &CommonTrain.custom_loss_fn(&1, &2)
+
+params =
+  {init_fn, custom_predict_fn}
+  |> Axon.Loop.trainer(custom_loss_fn, Polaris.Optimizers.adam(learning_rate: 5.0e-5))
+  |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 10000, compiler: EXLA)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-#Axon.Loop<
-  metrics: %{
-    "loss" => {#Function<11.3813108/3 in Axon.Metrics.running_average/1>,
-     #Function<41.3316493/2 in :erl_eval.expr/6>}
-  },
-  handlers: %{
-    completed: [],
-    epoch_completed: [
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<6.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    epoch_halted: [],
-    epoch_started: [],
-    halted: [],
-    iteration_completed: [
-      {#Function<27.14409478/1 in Axon.Loop.log/3>,
-       #Function<64.14409478/2 in Axon.Loop.build_filter_fn/1>}
-    ],
-    iteration_started: [],
-    started: []
-  },
-  ...
->
+
+00:19:35.604 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
+
 ```
 
 The call to trainer just returns a data structure. In Axon, we manipulate this data structure to control different parts of the loop. For example, you can attach metrics:

@@ -15,4 +15,8 @@ defmodule Lorax do
   def hello do
     :world
   end
+
+  def foo(%Axon{} = axon) do
+    axon
+  end
 end
