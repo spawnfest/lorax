@@ -8,7 +8,8 @@ Mix.install([
   {:axon, "~> 0.6.0"},
   {:nx, "~> 0.6.1"},
   {:exla, "~> 0.6.1"},
-  {:explorer, "~> 0.7.0"}
+  {:explorer, "~> 0.7.0"},
+  {:lorax, path: "/Users/ted/CS/elixir/lorax"}
 ])
 
 Nx.default_backend(EXLA.Backend)
