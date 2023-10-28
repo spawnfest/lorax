@@ -1,28 +1,17 @@
 defmodule Lorax do
   import Nx.Defn
 
+  defmodule Config do
+    defstruct r: 1, lora_alpha: 2, lora_dropout: 0.0
+  end
+
   @moduledoc """
   Documentation for `Lorax`.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Lorax.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
-
   # update nodes so that target is moved to dummy position, lora replaces target's position
-  def foo(%Axon{} = axon, filter_node_fn) do
-    target_nodes =
-      get_target_nodes(axon, filter_node_fn)
-      # |> IO.inspect(label: "target nodes")
+  def foo(%Axon{} = axon, %Config{} = config, filter_node_fn) do
+    target_nodes = get_target_nodes(axon, filter_node_fn)
 
     if target_nodes == [] do
       IO.inspect("no nodes modified")
@@ -44,7 +33,7 @@ defmodule Lorax do
 
       # lora node takes target's place
       # target node takes dummy's place
-      lora_node = create_lora_node(parent_axons, dummy_axon, r: 1, lora_alpha: 2, lora_dropout: 0)
+      lora_node = create_lora_node(parent_axons, dummy_axon, config)
       lora_node = %Axon.Node{lora_node | id: target_id}
       target_node = %Axon.Node{target_node | id: dummy_id}
 
@@ -60,11 +49,11 @@ defmodule Lorax do
     end)
   end
 
-  defp create_lora_node(parent_axons, dummy_axon,
+  defp create_lora_node(parent_axons, dummy_axon, %Config{
          r: r,
          lora_alpha: lora_alpha,
          lora_dropout: lora_dropout
-       ) do
+       }) do
     scaling = r / lora_alpha
     lora_A = Axon.param("lora_a", &dense_kernel_a(&1, &2, r), initializer: :normal)
     lora_B = Axon.param("lora_b", &dense_kernel_b(&1, &2, r), initializer: :zeros)

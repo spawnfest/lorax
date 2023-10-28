@@ -30,6 +30,14 @@ Nx.default_backend(EXLA.Backend)
 <!-- livebook:{"output":true} -->
 
 ```
+
+16:28:38.126 [info] TfrtCpuClient created.
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
 {:ok,
  %Bumblebee.Text.Gpt2Tokenizer{
    tokenizer: #Tokenizers.Tokenizer<[
@@ -94,21 +102,21 @@ test_data =
 %{
   "attention_mask" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2627338256.41827>
+    EXLA.Backend<host:0, 0.3753376892.1323696144.127869>
     [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
     ]
   >,
   "input_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2627338256.41828>
+    EXLA.Backend<host:0, 0.3753376892.1323696144.127870>
     [
       [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
     ]
   >,
   "token_type_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2627338256.41829>
+    EXLA.Backend<host:0, 0.3753376892.1323696144.127871>
     [
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
     ]
@@ -253,20 +261,23 @@ For training LoRA adapters, we'll freeze the original layers, and append adapter
 lora_model =
   model
   |> Axon.freeze()
-  |> Lorax.foo(fn %Axon.Node{name: name_fn, op: _op} ->
-    # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
-    # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
-    # have to invoke the function to see what layer the node represents
-    name = name_fn.(nil, nil)
-    shortname = String.split(name, ".") |> List.last()
+  |> Lorax.foo(
+    %Lorax.Config{r: 2, lora_alpha: 4, lora_dropout: 0.05},
+    fn %Axon.Node{name: name_fn, op: _op} ->
+      # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
+      # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
+      # have to invoke the function to see what layer the node represents
+      name = name_fn.(nil, nil)
+      shortname = String.split(name, ".") |> List.last()
 
-    if shortname == "key" or shortname == "query" or shortname == "value" do
-      IO.inspect(name, label: "name?")
-      true
-    else
-      false
+      if shortname == "key" or shortname == "query" or shortname == "value" do
+        IO.inspect(name, label: "name?")
+        true
+      else
+        false
+      end
     end
-  end)
+  )
 ```
 
 <!-- livebook:{"output":true} -->
@@ -360,6 +371,6 @@ lora_params =
 
 ```
 
-13:06:09.435 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-Epoch: 0, Batch: 50, loss: 5.1121383
+16:29:40.550 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
+Epoch: 0, Batch: 0, loss: 0.0000000
 ```
