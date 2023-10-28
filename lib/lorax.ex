@@ -54,7 +54,7 @@ defmodule Lorax do
          lora_alpha: lora_alpha,
          lora_dropout: lora_dropout
        }) do
-    scaling = r / lora_alpha
+    scaling = lora_alpha / r
     lora_A = Axon.param("lora_a", &dense_kernel_a(&1, &2, r), initializer: :normal)
     lora_B = Axon.param("lora_b", &dense_kernel_b(&1, &2, r), initializer: :zeros)
 

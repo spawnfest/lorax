@@ -372,5 +372,5 @@ lora_params =
 ```
 
 16:29:40.550 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-Epoch: 0, Batch: 0, loss: 0.0000000
+Epoch: 0, Batch: 50, loss: 5.1495705
 ```
