@@ -45,7 +45,7 @@ The pre-trained model we'll be using is `bert-base-cased`; however, you can use 
 
 ```
 
-00:11:39.140 [info] TfrtCpuClient created.
+12:18:17.313 [info] TfrtCpuClient created.
 
 ```
 
@@ -124,21 +124,21 @@ test_data =
 %{
   "attention_mask" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.680840265.903741456.192428>
+    EXLA.Backend<host:0, 0.967347462.2626289680.170766>
     [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
     ]
   >,
   "input_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.680840265.903741456.192429>
+    EXLA.Backend<host:0, 0.967347462.2626289680.170767>
     [
       [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
     ]
   >,
   "token_type_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.680840265.903741456.192430>
+    EXLA.Backend<host:0, 0.967347462.2626289680.170768>
     [
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
     ]
@@ -283,7 +283,7 @@ For training, we only care about the `:logits` key, so we'll extract that by att
 lora_model =
   model
   |> Axon.freeze()
-  |> Lorax.foo()
+  |> Lorax.foo(fn %Axon.Node{op: op} -> op == :dense end)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -292,7 +292,7 @@ lora_model =
 #Axon<
   inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
   outputs: "container_37"
-  nodes: 859
+  nodes: 931
 >
 ```
 
