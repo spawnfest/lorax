@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Fine-tuning
+# LoRA Fine-tuning
 
 ```elixir
 Mix.install([
@@ -39,14 +39,6 @@ The pre-trained model we'll be using is `bert-base-cased`; however, you can use 
 {:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
 {:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
 {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-
-12:18:17.313 [info] TfrtCpuClient created.
-
 ```
 
 <!-- livebook:{"output":true} -->
@@ -124,21 +116,21 @@ test_data =
 %{
   "attention_mask" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2626289680.170766>
+    EXLA.Backend<host:0, 0.967347462.2627338256.41827>
     [
       [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
     ]
   >,
   "input_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2626289680.170767>
+    EXLA.Backend<host:0, 0.967347462.2627338256.41828>
     [
       [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
     ]
   >,
   "token_type_ids" => #Nx.Tensor<
     u32[1][33802]
-    EXLA.Backend<host:0, 0.967347462.2626289680.170768>
+    EXLA.Backend<host:0, 0.967347462.2627338256.41829>
     [
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
     ]
@@ -283,7 +275,61 @@ For training, we only care about the `:logits` key, so we'll extract that by att
 lora_model =
   model
   |> Axon.freeze()
-  |> Lorax.foo(fn %Axon.Node{op: op} -> op == :dense end)
+  |> Lorax.foo(fn %Axon.Node{name: name_fn, op: _op} ->
+    # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
+    # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
+    # have to invoke the function to see what layer the node represents
+    name = name_fn.(nil, nil)
+    shortname = String.split(name, ".") |> List.last()
+
+    if shortname == "key" or shortname == "query" or shortname == "value" do
+      IO.inspect(name, label: "name?")
+      true
+    else
+      false
+    end
+  end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+name?: "decoder.blocks.11.self_attention.value"
+name?: "decoder.blocks.11.self_attention.key"
+name?: "decoder.blocks.11.self_attention.query"
+name?: "decoder.blocks.10.self_attention.value"
+name?: "decoder.blocks.10.self_attention.key"
+name?: "decoder.blocks.10.self_attention.query"
+name?: "decoder.blocks.9.self_attention.value"
+name?: "decoder.blocks.9.self_attention.key"
+name?: "decoder.blocks.9.self_attention.query"
+name?: "decoder.blocks.8.self_attention.value"
+name?: "decoder.blocks.8.self_attention.key"
+name?: "decoder.blocks.8.self_attention.query"
+name?: "decoder.blocks.7.self_attention.value"
+name?: "decoder.blocks.7.self_attention.key"
+name?: "decoder.blocks.7.self_attention.query"
+name?: "decoder.blocks.6.self_attention.value"
+name?: "decoder.blocks.6.self_attention.key"
+name?: "decoder.blocks.6.self_attention.query"
+name?: "decoder.blocks.5.self_attention.value"
+name?: "decoder.blocks.5.self_attention.key"
+name?: "decoder.blocks.5.self_attention.query"
+name?: "decoder.blocks.4.self_attention.value"
+name?: "decoder.blocks.4.self_attention.key"
+name?: "decoder.blocks.4.self_attention.query"
+name?: "decoder.blocks.3.self_attention.value"
+name?: "decoder.blocks.3.self_attention.key"
+name?: "decoder.blocks.3.self_attention.query"
+name?: "decoder.blocks.2.self_attention.value"
+name?: "decoder.blocks.2.self_attention.key"
+name?: "decoder.blocks.2.self_attention.query"
+name?: "decoder.blocks.1.self_attention.value"
+name?: "decoder.blocks.1.self_attention.key"
+name?: "decoder.blocks.1.self_attention.query"
+name?: "decoder.blocks.0.self_attention.value"
+name?: "decoder.blocks.0.self_attention.key"
+name?: "decoder.blocks.0.self_attention.query"
 ```
 
 <!-- livebook:{"output":true} -->
@@ -292,7 +338,7 @@ lora_model =
 #Axon<
   inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
   outputs: "container_37"
-  nodes: 931
+  nodes: 895
 >
 ```
 
@@ -336,8 +382,8 @@ params =
 
 ```
 
-00:19:35.604 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-
+13:06:09.435 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
+Epoch: 0, Batch: 0, loss: 0.0000000
 ```
 
 The call to trainer just returns a data structure. In Axon, we manipulate this data structure to control different parts of the loop. For example, you can attach metrics:
