@@ -7,14 +7,22 @@ Mix.install([
   {:nx, "~> 0.6.1"},
   {:exla, "~> 0.6.1"},
   {:explorer, "~> 0.7.0"},
-  # {:lorax, git: "https://github.com/spawnfest/lorax.git"},
-  {:lorax, path: "/Users/ted/CS/elixir/lorax"},
+  {:lorax, git: "https://github.com/spawnfest/lorax.git"},
+  # {:lorax, path: "/Users/ted/CS/elixir/lorax"},
   {:req, "~> 0.4.0"},
   {:kino, "~> 0.11.0"}
 ])
 
 Nx.default_backend(EXLA.Backend)
 ```
+
+## Mimicking the Elixirforum Help Section
+
+One great benefit to LoRA is the file size of the fine-tuned parameters. What we can do is load one of the parameters named `elixirforum-help-section.lorax` and upload it to the Kino input down below.
+
+The other notebook in this package fine-tuned the GPT2 model to learn the associations typically found in an Elixirforum thread.
+
+The average computer should be able to run the GPT2 inference without much problems. You'll see that it generates some random thread you may find in the help section.
 
 ## Load model
 
@@ -37,6 +45,8 @@ input = Kino.Input.file("Lorax Params")
 
 ## Load Param File
 
+Although we've loaded the LoRA params, we still need the original parameters (the extremely large ones). We'll merge the parameters into one single mapping of layers -> tensor values, and Axon will be able to run it
+
 ```elixir
 lora_params = Lorax.Params.kino_load_file!(input)
 merged_params = Lorax.Params.merge_params(lora_params, gpt2_params)
@@ -44,23 +54,44 @@ merged_params = Lorax.Params.merge_params(lora_params, gpt2_params)
 
 ## Define LoRA Model
 
-Axon keeps the model definition as code. The associated parameters are always separate.
+Axon keeps the model definition as code. So we need to modify the definition of the GPT2 layers, so it contains the injected LoRA layers. This is the same definition found in the other notebook that trained the LoRA GPT2 model.
+
+```elixir
+r = 8
+lora_alpha = 16
+lora_dropout = 0.05
+```
 
 ```elixir
 lora_model =
   model
   |> Axon.freeze()
   |> Lorax.inject(%Lorax.Config{
-    r: 2,
-    alpha: 4,
-    dropout: 0.05
+    r: r,
+    alpha: lora_alpha,
+    dropout: lora_dropout,
+    target_key: true,
+    target_query: true,
+    target_value: true
   })
 ```
 
 ## Inference
 
+As far as I can tell, the model doesn't generate any user that actually exists in the Elixirforums. But a real username may pop up if you run it enough times. The training data can be found in the `data` directory. The structure of every thread goes something like
+
+```
+Title: ...
+
+Author: bob
+
+<user submitted text>
+
+[number of likes]
+```
+
 ```elixir
-lora_model_info = %{model: lora_model, params: lora_params, spec: spec}
+lora_model_info = %{model: lora_model, params: merged_params, spec: spec}
 
 lora_generation_config =
   Bumblebee.configure(generation_config,
