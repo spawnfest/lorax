@@ -92,8 +92,8 @@ defmodule Lorax do
     {r, elem(x_shape, Nx.rank(x_shape) - 1)}
   end
 
-  defp dense_kernel_b(x_shape, _wx_shape, r) do
-    {elem(x_shape, Nx.rank(x_shape) - 1), r}
+  defp dense_kernel_b(_x_shape, wx_shape, r) do
+    {elem(wx_shape, Nx.rank(wx_shape) - 1), r}
   end
 
   defp get_target_nodes(axon, %Config{target_node_fn: target_node_fn})
