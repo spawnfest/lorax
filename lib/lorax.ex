@@ -2,7 +2,16 @@ defmodule Lorax do
   import Nx.Defn
 
   defmodule Config do
-    defstruct r: 1, lora_alpha: 2, lora_dropout: 0.0
+    defstruct r: 1,
+              alpha: 2,
+              dropout: 0.0,
+              target_query: true,
+              target_key: false,
+              target_value: true,
+              # target_project: false,
+              # target_mlp: false,
+              # target_head: false,
+              target_node_fn: nil
   end
 
   @moduledoc """
@@ -10,12 +19,8 @@ defmodule Lorax do
   """
 
   # update nodes so that target is moved to dummy position, lora replaces target's position
-  def foo(%Axon{} = axon, %Config{} = config, filter_node_fn) do
-    target_nodes = get_target_nodes(axon, filter_node_fn)
-
-    if target_nodes == [] do
-      IO.inspect("no nodes modified")
-    end
+  def foo(%Axon{} = axon, %Config{} = config) do
+    target_nodes = get_target_nodes(axon, config)
 
     Enum.reduce(target_nodes, axon, fn target_id, %Axon{nodes: acc_nodes} = acc ->
       # Grab our target node, create a fake Axon container for it
@@ -51,17 +56,17 @@ defmodule Lorax do
 
   defp create_lora_node(parent_axons, dummy_axon, %Config{
          r: r,
-         lora_alpha: lora_alpha,
-         lora_dropout: lora_dropout
+         alpha: alpha,
+         dropout: dropout
        }) do
-    scaling = lora_alpha / r
+    scaling = alpha / r
     lora_A = Axon.param("lora_a", &dense_kernel_a(&1, &2, r), initializer: :normal)
     lora_B = Axon.param("lora_b", &dense_kernel_b(&1, &2, r), initializer: :zeros)
 
     # Send x, dummy Wx, and new params to create a new lora layer node
     Axon.layer(&lora_impl/5, parent_axons ++ [dummy_axon, lora_A, lora_B],
       op_name: :lora,
-      lora_dropout: lora_dropout,
+      dropout: dropout,
       scaling: scaling
     )
     |> then(fn %Axon{output: lora_id, nodes: lora_nodes} ->
@@ -71,10 +76,10 @@ defmodule Lorax do
   end
 
   defn lora_impl(x, wx, lora_A, lora_B, opts \\ []) do
-    lora_dropout = opts[:lora_dropout]
+    dropout = opts[:dropout]
     scaling = opts[:scaling]
 
-    x = Axon.Layers.dropout(x, Nx.Random.key(1337), rate: lora_dropout)
+    x = Axon.Layers.dropout(x, Nx.Random.key(1337), rate: dropout)
     after_a = Axon.Layers.dense(x, lora_A |> Nx.transpose())
     after_b = Nx.dot(after_a, lora_B |> Nx.transpose())
     bax = Nx.multiply(after_b, scaling)
@@ -91,13 +96,44 @@ defmodule Lorax do
     {elem(x_shape, Nx.rank(x_shape) - 1), r}
   end
 
-  defp get_target_nodes(axon, filter_node_fn) do
+  defp get_target_nodes(axon, %Config{target_node_fn: target_node_fn})
+       when is_function(target_node_fn, 1) do
     Axon.reduce_nodes(axon, [], fn %Axon.Node{id: id} = node, acc ->
-      if filter_node_fn.(node) do
+      if target_node_fn.(node) do
         [id | acc]
       else
         acc
       end
+    end)
+  end
+
+  defp get_target_nodes(
+         axon,
+         %Config{
+           target_query: target_query,
+           target_key: target_key,
+           target_value: target_value
+         }
+       ) do
+    Axon.reduce_nodes(axon, [], fn
+      %Axon.Node{id: id, name: name_fn, op: :dense}, acc ->
+        shortname =
+          name_fn.(:dense, nil)
+          |> IO.inspect(label: "full name")
+          |> String.split(".")
+          |> List.last()
+
+        if (target_key and shortname == "key") or
+             (target_query and shortname == "query") or
+             (target_value and shortname == "value") do
+          IO.inspect(shortname, label: "Accepting node")
+          [id | acc]
+        else
+          acc
+        end
+
+      %Axon.Node{}, acc ->
+        acc
     end)
   end
 end

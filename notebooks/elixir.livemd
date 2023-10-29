@@ -1,0 +1,290 @@
+# LoRA Fine-tuning
+
+```elixir
+Mix.install([
+  {:bumblebee, "~> 0.4.2"},
+  {:axon, "~> 0.6.0"},
+  {:nx, "~> 0.6.1"},
+  {:exla, "~> 0.6.1"},
+  {:explorer, "~> 0.7.0"},
+  {:lorax, git: "https://github.com/spawnfest/lorax.git"},
+  {:req, "~> 0.4.0"},
+  {:kino, "~> 0.11.0"}
+])
+
+Nx.default_backend(EXLA.Backend)
+```
+
+## Introduction
+
+The LoRA algorithm introduces a more efficient method for adaptation by injecting trainable rank decomposition matrices into each layer of the Transformer architecture while freezing the original model weights. This technique significantly reduces the number of trainable parameters and GPU memory requirements, making it a viable alternative to full fine-tuning, especially for large models.
+
+### Key Insights
+
+* Efficiency: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
+* Performance: Despite the reduction in trainable parameters, LoRA exhibits comparable or even superior performance to full fine-tuning on various models (RoBERTa, DeBERTa, GPT-2, GPT-3) across different benchmarks.
+* Practicality: LoRA facilitates efficient task-switching during deployment and significantly lowers the storage requirements for adapted models.
+
+### Implementation and Resources:
+
+We provide a Python package to easily integrate LoRA into PyTorch models.
+Example implementations and model checkpoints for RoBERTa, DeBERTa, and GPT-2 are made available for practical demonstration and usage.
+
+## Hyperparameters
+
+```elixir
+batch_size = 4
+sequence_length = 512
+r = 4
+lora_alpha = 8
+lora_dropout = 0.05
+
+:ok
+```
+
+## Load a model
+
+```elixir
+{:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
+{:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
+{:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
+
+:ok
+```
+
+## Prepare a dataset
+
+```elixir
+# text = Kino.Input.textarea("Text Data")
+text =
+  Req.get!("https://raw.githubusercontent.com/spawnfest/lorax/main/data/elixirforum.txt").body
+
+:ok
+```
+
+```elixir
+tokenized_text = %{"input_ids" => input_ids} = Bumblebee.apply_tokenizer(tokenizer, text)
+n_tokens = Nx.size(input_ids)
+n_train = round(n_tokens * 0.9)
+n_val = n_tokens - n_train
+
+train_data =
+  for {input_key, tokenized_values} <- tokenized_text, into: %{} do
+    {input_key, Nx.slice_along_axis(tokenized_values, 0, n_train, axis: -1)}
+  end
+
+test_data =
+  for {input_key, tokenized_values} <- tokenized_text, into: %{} do
+    {input_key, Nx.slice_along_axis(tokenized_values, n_train, n_val, axis: -1)}
+  end
+
+:ok
+```
+
+```elixir
+defmodule DataStream do
+  def get_batch_stream(%{"input_ids" => input_ids} = data, batch_size, block_size, opts \\ []) do
+    seed = Keyword.get(opts, :seed, 1337)
+
+    Stream.resource(
+      # initialization function
+      fn ->
+        Nx.Random.key(seed)
+      end,
+      # generation function
+      fn key ->
+        {_b, t} = Nx.shape(input_ids)
+
+        data =
+          for {k, v} <- data, into: %{} do
+            {k, Nx.reshape(v, {t})}
+          end
+
+        # ix = list of random starting indices
+        {ix, new_key} =
+          Nx.Random.randint(key, 0, t - block_size, shape: {batch_size}, type: :u32)
+
+        ix = Nx.to_list(ix)
+
+        # x is map of sliced tensors
+        x =
+          for {k, tensor} <- data, into: %{} do
+            batch_slice =
+              ix
+              |> Enum.map(fn i -> Nx.slice_along_axis(tensor, i, block_size, axis: -1) end)
+              |> Nx.stack()
+
+            {k, batch_slice}
+          end
+
+        # y represents all the predicted next tokens (input_ids shifted by 1) 
+        y =
+          ix
+          |> Enum.map(fn i ->
+            data["input_ids"] |> Nx.slice_along_axis(i + 1, block_size, axis: -1)
+          end)
+          |> Nx.stack()
+          |> Nx.flatten()
+
+        out_data = {x, y}
+
+        {[out_data], new_key}
+      end,
+      fn _ -> :ok end
+    )
+  end
+end
+```
+
+You can see what a single batch looks like by grabbing 1 from the stream:
+
+```elixir
+train_batch_stream = DataStream.get_batch_stream(train_data, batch_size, sequence_length)
+test_batch_stream = DataStream.get_batch_stream(test_data, batch_size, sequence_length)
+
+[{x, y}] = train_batch_stream |> Enum.take(1)
+[{x_val, y_val}] = test_batch_stream |> Enum.take(1)
+
+Bumblebee.Tokenizer.decode(tokenizer, x["input_ids"]) |> IO.inspect()
+IO.puts("=====")
+Bumblebee.Tokenizer.decode(tokenizer, y) |> IO.inspect()
+```
+
+## Train the model
+
+Now we can go about training the model! First, we need to extract the Axon model and parameters from the Bumblebee model map:
+
+```elixir
+%{model: model, params: params} = model
+
+model
+```
+
+The Axon model actually outputs a map with `:logits`, `:hidden_states`, and `:attentions`. You can see this by using `Axon.get_output_shape/2` with an input. This method symbolically executes the graph and gets the resulting shapes:
+
+```elixir
+[{input, _}] = Enum.take(train_batch_stream, 1)
+Axon.get_output_shape(model, input)
+```
+
+For training LoRA adapters, we'll freeze the original layers, and append adapters to our target nodes
+
+```elixir
+lora_model =
+  model
+  |> Axon.freeze()
+  |> Lorax.foo(
+    %Lorax.Config{r: r, lora_alpha: lora_alpha, lora_dropout: lora_dropout},
+    fn %Axon.Node{name: name_fn, op: _op} ->
+      # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
+      # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
+      # have to invoke the function to see what layer the node represents
+      name = name_fn.(nil, nil)
+      shortname = String.split(name, ".") |> List.last()
+
+      if shortname == "key" or shortname == "query" or shortname == "value" do
+        true
+      else
+        false
+      end
+    end
+  )
+```
+
+Now we can declare our training loop. You can construct Axon training loops using the `Axon.Loop.trainer/3` factory method with a model, loss function, and optimizer. We'll also adjust the log-settings to more frequently log metrics to standard out:
+
+```elixir
+defmodule CommonTrain do
+  import Nx.Defn
+
+  defn custom_predict_fn(model_predict_fn, params, input) do
+    %{prediction: preds} = out = model_predict_fn.(params, input)
+
+    # Output of GPT2 model is a map containing logits and other tensors
+    logits = preds.logits
+
+    {b, t, c} = Nx.shape(logits)
+    reshaped = Nx.reshape(logits, {b * t, c})
+    %{out | prediction: reshaped}
+  end
+
+  def custom_loss_fn(y_true, y_pred) do
+    Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+      from_logits: true,
+      sparse: true,
+      reduction: :mean
+    )
+  end
+end
+
+{init_fn, predict_fn} = Axon.build(lora_model, mode: :train)
+custom_predict_fn = &CommonTrain.custom_predict_fn(predict_fn, &1, &2)
+custom_loss_fn = &CommonTrain.custom_loss_fn(&1, &2)
+
+lora_params =
+  {init_fn, custom_predict_fn}
+  |> Axon.Loop.trainer(custom_loss_fn, Polaris.Optimizers.adam(learning_rate: 3.0e-4))
+  |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 1000, compiler: EXLA)
+```
+
+## Text Generation
+
+```elixir
+text = "  "
+
+inputs = Bumblebee.apply_tokenizer(tokenizer, text)
+
+{:ok, generation_config} = Bumblebee.load_generation_config({:hf, "gpt2"})
+
+lora_model_info = %{model: lora_model, params: lora_params, spec: spec}
+
+lora_generation_config =
+  Bumblebee.configure(generation_config,
+    max_new_tokens: 256,
+    strategy: %{type: :multinomial_sampling, top_p: 0.6}
+  )
+
+serving = Bumblebee.Text.generation(lora_model_info, tokenizer, lora_generation_config)
+%{results: [%{text: text}]} = Nx.Serving.run(serving, text)
+
+text
+|> IO.puts()
+```
+
+```elixir
+file_input = Kino.Input.file("Your LoRA params")
+```
+
+```elixir
+defmodule Params do
+  def serialize_params(lora_params, og_keys, serialize_opts \\ []) do
+    lora_params = Map.drop(lora_params, og_keys)
+    Nx.serialize(lora_params, serialize_opts)
+  end
+
+  def new(lora_params, og_keys, filename \\ "params.lorax", label \\ "Lora Params") do
+    iodata = Params.serialize_params(lora_params, og_keys)
+    binary = IO.iodata_to_binary(iodata)
+
+    Kino.Download.new(
+      fn -> binary end,
+      filename: filename,
+      label: label
+    )
+  end
+end
+
+og_keys = params |> Map.keys()
+# Params.new(lora_params, og_keys)
+
+iodata = Params.serialize_params(lora_params, og_keys)
+binary = IO.iodata_to_binary(iodata)
+
+File.write("/public-apps/params.lorax", binary)
+
+# Kino.Download.new(
+#   fn -> binary end,
+#   filename: "params.lorax",
+#   label: "Lora Params"
+# )
+```
