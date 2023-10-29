@@ -26,3 +26,5 @@ lorax-*.tar
 /tmp/
 
 .DS_Store
+
+ignore
