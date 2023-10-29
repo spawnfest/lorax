@@ -1,4 +1,4 @@
-# LoRA Fine-tuning
+# LoRA on Elixirforum Data
 
 ```elixir
 Mix.install([
@@ -15,30 +15,21 @@ Mix.install([
 Nx.default_backend(EXLA.Backend)
 ```
 
-## Introduction
-
-The LoRA algorithm introduces a more efficient method for adaptation by injecting trainable rank decomposition matrices into each layer of the Transformer architecture while freezing the original model weights. This technique significantly reduces the number of trainable parameters and GPU memory requirements, making it a viable alternative to full fine-tuning, especially for large models.
-
-### Key Insights
-
-* Efficiency: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
-* Performance: Despite the reduction in trainable parameters, LoRA exhibits comparable or even superior performance to full fine-tuning on various models (RoBERTa, DeBERTa, GPT-2, GPT-3) across different benchmarks.
-* Practicality: LoRA facilitates efficient task-switching during deployment and significantly lowers the storage requirements for adapted models.
-
-### Implementation and Resources:
-
-We provide a Python package to easily integrate LoRA into PyTorch models.
-Example implementations and model checkpoints for RoBERTa, DeBERTa, and GPT-2 are made available for practical demonstration and usage.
-
 ## Hyperparameters
 
 ```elixir
 batch_size = 4
 sequence_length = 512
-r = 4
-lora_alpha = 8
+r = 8
+lora_alpha = 16
 lora_dropout = 0.05
 
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
 :ok
 ```
 
@@ -48,7 +39,34 @@ lora_dropout = 0.05
 {:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
 {:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
 {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
+{:ok, generation_config} = Bumblebee.load_generation_config({:hf, "gpt2"})
 
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+
+16:52:37.091 [info] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero. See more at https://github.com/torvalds/linux/blob/v6.0/Documentation/ABI/testing/sysfs-bus-pci#L344-L355
+
+16:52:37.091 [info] XLA service 0x7faae43347d0 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+
+16:52:37.091 [info]   StreamExecutor device (0): NVIDIA A10G, Compute Capability 8.6
+
+16:52:37.091 [info] Using BFC allocator.
+
+16:52:37.091 [info] XLA backend allocating 21452488704 bytes on device 0 for BFCAllocator.
+
+16:52:39.735 [info] Loaded cuDNN version 8900
+
+16:52:39.799 [info] Using nvlink for parallel linking
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
 :ok
 ```
 
@@ -58,8 +76,12 @@ lora_dropout = 0.05
 # text = Kino.Input.textarea("Text Data")
 text =
   Req.get!("https://raw.githubusercontent.com/spawnfest/lorax/main/data/elixirforum.txt").body
+```
 
-:ok
+<!-- livebook:{"output":true} -->
+
+```
+"Title: Embedding interactive IEx shell in debugging page shown for development builds\n\nfrerich:\n\nI’m exploring ways to embed underthehood into the debugging page used when debug_errors: true is set on the endpoint. This package provides a LiveView component presenting a fully-functional Iex session into the VM, enabling people to go spelunking around their application code in case anything goes wrong. I suspect this might come in handy when debugging.\nTo avoid pulling in unnecessary dependencies, my plan was to first contribute a PR which adjusts Phoenix.Endpoint.RenderErrors.__debug_banner__/5 such that it somehow considers “hooks” (e.g. a list of MFA tuples) provided via the configuration when rendering markup. Any hooks would then get invoked, contributing additional markup.\nI could then go ahead and create a phoenix_live_debug_terminal package or the like which depends on underthehood and implements a hook embedding the terminal component into the error page. Users would get the interactive shell (and a LiveView dependency) simply by depending on phoenix_live_debug_terminal and configuring their endpoint(s) like\nconfig :my_app, MyApp.Endpoint, debug_page_hooks: {Phoenix.LiveDebugTerminal, :render, []}\n…such that when rendering the debug page, a nice little terminal is embedded.\nBefore going ahead, I wanted to reach out and clarify:\nDoes having an interactive IEx shell in the debug view seem like a useful feature?Is the approach of making Phoenix.Endpoint.RenderErrors.__debug_banner__/5 respect hooks (specified via MFA tuples) a good way about enabling users to extend the debug page?Any feedback is much appreciated. 6 Likes\n\n[6 likes]\n\naxelson:\n\nThis sounds like a great idea to me! I made great use of a similar functionality for Rails. And I like the architecture you have proposed.\n\n[1 like]\n\nfrerich:\n\nThanks for the encouraging feedback!\nI now built a first version of this module - say hello to phoenix_live_debug_console. The project page has a little video showing it in practice.\nCaveat: at this point, a custom Phoenix build is required with PR 4938 applied. I hope I can get this in for one of the next Phoenix releases. Fingers crossed!\n2 Likes\n\n[2 likes]\n\n\nTitle: How to correctly update many-to-many associations with put assoc\n\nDOKL57:\n\nHello everyone!\n\nI have a tagging system, and I pass new tags via put assoc, then the link is added to the join table, but from there the old links are removed because I have the “delete” on_replace option set. By link, I mean a row in the join table (user_id; tag_id).\n\nAs I understood from other threads on the forum and documentation, I need to pass the existing tags along with the new ones explicitly to re-link, and I plan to do it as follows:\nGet the id of the attached tags to the current user from the join table.Get the tags from the tags table using the obtained tag id.Pass the received tags to the put assoc along with the new tags.I would like to know if this is the best way, because in this case, we are accessing two database tables every time, or is there another way?\nThanks in advance!\n\n[1 like]\n\nkokolegorille:\n\nkokolegorille October 30, 2021, 8:39am 2There might be a better way for tags.\nhttps://hexdocs.pm/ecto/constraints-and-upserts.html1 Like\n\n[1 like]\n\naziz:\n\nI think Ecto is great but in this case it makes everything needlessly complicated. When I was a beginner I had the same troubles understanding and I couldn’t believe that so much communication with the database was apparently necessary. The guide is done well and it illustrates the problems step by step but the issue is that all that information isn’t really essential. The problem is simple: give the database a list of tags and return them with ids, even if they’re already there. No need to consider double insertions, race conditions, constraints and put_assoc and cast_assoc. You only need to understand one function and a few options to achieve this thing.\nHere is my modified version from the guide. I didn’t test it, but I think Repo.all(...) is unnecessary and the tags can be upserted and returned in one go.\ndef " <> ...
 ```
 
 ```elixir
@@ -77,8 +99,34 @@ test_data =
   for {input_key, tokenized_values} <- tokenized_text, into: %{} do
     {input_key, Nx.slice_along_axis(tokenized_values, n_train, n_val, axis: -1)}
   end
+```
 
-:ok
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "attention_mask" => #Nx.Tensor<
+    u32[1][129145]
+    EXLA.Backend<cuda:0, 0.938836670.1244266508.16643>
+    [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
+    ]
+  >,
+  "input_ids" => #Nx.Tensor<
+    u32[1][129145]
+    EXLA.Backend<cuda:0, 0.938836670.1244266508.16644>
+    [
+      [262, 1708, 25, 198, 1, 19668, 13, 2934, 1420, 1298, 685, 366, 28758, 1377, 10210, 6798, 30599, 1057, 6061, 1600, 366, 274, 11249, 4277, 1377, 1084, 1958, 1377, 29356, 25, 13, 926, 69, 28, 7753, 1600, 366, 746, 87, 13, 12894, 395, 1, 198, 60, 198, 1537, 314, ...]
+    ]
+  >,
+  "token_type_ids" => #Nx.Tensor<
+    u32[1][129145]
+    EXLA.Backend<cuda:0, 0.938836670.1244266508.16645>
+    [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
+    ]
+  >
+}
 ```
 
 ```elixir
@@ -136,6 +184,12 @@ defmodule DataStream do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, DataStream, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:get_batch_stream, 4}}
+```
+
 You can see what a single batch looks like by grabbing 1 from the stream:
 
 ```elixir
@@ -150,6 +204,23 @@ IO.puts("=====")
 Bumblebee.Tokenizer.decode(tokenizer, y) |> IO.inspect()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+["Not necessarily, using or on different field with index usually result in query optimizer combine these two different index in bitwise or operation. Usually it’s not faster to do lookup one then the other because it cause two DB request network latency.\n2 Likes\n\n[2 likes]\n\nsodapopcan:\n\nOh interesting. What my my old colleague going on about then? lol. I tried an explain with an OR on the same column and it still gave me a sequence scan, so I guess I don’t understand like I thought I did and I have some more RTFMing to do.\n\n[0 likes]\n\ntravisf:\n\nAh, so you’d recommend implementing get_record/1 when the record is saved/updated and then using that field as the param in the route?\n\n[0 likes]\n\ntravisf:\n\nThis makes sense, but how does that translate into the route? Like if I had a list of Things what would I put in the Routes.live_path/3 as a param?\n\n[0 likes]\n\nbenwilson512:\n\ntravisf:\nLike if I had a list of ThingsCan you elaborate what you mean? Are you trying to have a route that contains many ids / slugs ? Or a list of different links each with its own id / slug ?\n\n[0 likes]\n\ntravisf:\n\nSorry that wasn’t clear, I was just unsure of how your solution would translate into Routes.live_path(@socket, MyAppWeb.ThingsLive.Show, ??) that’s where I was confused if either the id or the slug would work as a param there.\n\n[0 likes]\n\nsodapopcan:\n\nHave a look at Phoenix.Param. You could do something like:\ndefimpl Phoenix.Param, for: YourApp.SomeContext.SomeSchema do def to_param(schema) do Map.get(schema, :slug, schema.id) end\nend\nTo offer some unsolicited advice, I think it’ll be far less of a headache in the future if you make slugs non-nullable fields and auto-generate them based off of some other field as to not force users to specify one. Take it or leave it, of course!\n",
+ ".Rendered.to_iodata/1 (phoenix_live_view 0.18.17) lib/phoenix_live_view/engine.ex:153: Phoenix.HTML.Safe.Phoenix.LiveView.Rendered.to_iodata/3 (phoenix 1.7.1) lib/phoenix/controller.ex:1005: anonymous fn/5 in Phoenix.Controller.template_render_to_iodata/4 (telemetry 1.2.1) /home/steven/webdev/elixir/mono_phoenix_v01/deps/telemetry/src/telemetry.erl:321: :telemetry.span/3 (phoenix 1.7.1) lib/phoenix/controller.ex:971: Phoenix.Controller.render_and_send/4 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.action/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.phoenix_controller_pipeline/2 (phoenix 1.7.1) lib/phoenix/router.ex:425: Phoenix.Router.__call__/5 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.plug_builder_call/2 (mono_phoenix_v01 0.1.0) lib/plug/debugger.ex:136: MonoPhoenixV01Web.Endpoint.\"call (overridable 3)\"/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.call/2 (phoenix 1.7.1) lib/phoenix/endpoint/sync_code_reload_plug.ex:22: Phoenix.Endpoint.SyncCodeReload",
+ " {:completed, \"true\"} -> from task in query_acc, where: task.completed == true {:completed, \"false\"} -> from task in query_acc, where: task.completed == false _ -> query_acc end end)\nwhich will filter the data we fetched from database and then return that.\nam i wrong in what i said till now?\nNote - i am a noob and have just started learning elixir if i am wrong in my understanding till now please mention why I am wrong and what i should read to understand better, thank for your patience.\n\n[0 likes]\n\negze:\n\nNo worries.\nquery = from(task in Task)\nwill not immediately execute anything. Ecto.Query is just data that knows what to query for. What makes it run against the DB is the Repo.all() which receives the Ecto.Query as argument.\nWhat is happening in the code is, we take the base query query = from(task in Task) and then add more things to it with Enum.reduce. Once we are done, we run it with Repo.all\n\n[3 likes]\n\nkokolegorille:\n\nYou do not hit database until You use Repo…\nUPDATE: as mentionned in the previous post\n\n[1 like]\n\n\nTitle: Conditionally render element attribute in lv 0.17.9\n\nDaAnalyst:\n\nMigrating templates from 0.15.x to 0.17.9.\nAny ideas on how to conditionally render an element attribute?\n\nBefore I could simply do it as shown below, but it doesn’t work anymore:\n my-attribute<% end %>>\n\n[0 likes]\n\nJohnnyCurran:\n\nTry:\nFalsy values (nil, false) will not show my-attribute on the element, true will render my-attribute\n\n[1 like]\n\nDaAnalyst:\n\nThanks, but are you sure it won’t be rendered if falsy? Asking because I have plenty of templates to migrate and a non trivial amount of JS depending on such attributes.\nAlso, is this documented anywhere (haven’t found it in the guides)? If not, it should be.\n\n[0 likes]\n\nJohnnyCurran:\n\nare you sure it",
+ " different from the Elixir one, where everything was explained from the very beginning; it feels more something for people who were already using Phoenix and want to learn LiveView specifically.\nI have a hobby project I want to develop with Phoenix, but my main problem is I’ve never worked with databases before. I’m confused about how working with the database locally and then deploying it would work. Because I know that my Postgres database is in the /usr/local/var/postgres folder, which isn’t my project folder. When I define my schema with Ecto and it creates the tables in that dev/local database, how do I then deploy that to production?\nI see that the config/dev.exs file has the database info for the local database, so I suppose I’ll have a separate config for the production database. Does that mean I need to first create and host a database somewhere, then put the database connection info on that prod config somewhere, and then when I deploy Ecto will configure that database for me? But how would this work for future deploys after the first one, when the prod database already has data in it? If I change my schema and do a migration in dev, when/how would that migration happen in prod? It’s very confusing to me.\nI’ve been looking for tutorials/courses on databases to understand things better, but I seem to find stuff aimed at people who want to be DBAs. I don’t want to be an expert, I just want to know the basics to get a small hobbyist project working. Does anyone have course/tutorial/book recommendations for a complete beginner to get started?\n3 Likes\n\n[3 likes]\n\nthelastinuit:\n\nFirst, welcome!!!\nNow, this question is a mother-load! (joking but there is some truth to that).\nWhen I define my schema with Ecto and it creates the tables in that dev/local database, how do I then deploy that to production?\nYou have diff environment configs, as you mentioned. So the config will be there. However, I need to mention that this question involve DevOps tasks (how to release, when, process before releasing and so on). The deployment process to production is its own art. For that and for starters (unless you already did that), refer to Releasing.\nDoes that mean I need to first create"]
+=====
+" necessarily, using or on different field with index usually result in query optimizer combine these two different index in bitwise or operation. Usually it’s not faster to do lookup one then the other because it cause two DB request network latency.\n2 Likes\n\n[2 likes]\n\nsodapopcan:\n\nOh interesting. What my my old colleague going on about then? lol. I tried an explain with an OR on the same column and it still gave me a sequence scan, so I guess I don’t understand like I thought I did and I have some more RTFMing to do.\n\n[0 likes]\n\ntravisf:\n\nAh, so you’d recommend implementing get_record/1 when the record is saved/updated and then using that field as the param in the route?\n\n[0 likes]\n\ntravisf:\n\nThis makes sense, but how does that translate into the route? Like if I had a list of Things what would I put in the Routes.live_path/3 as a param?\n\n[0 likes]\n\nbenwilson512:\n\ntravisf:\nLike if I had a list of ThingsCan you elaborate what you mean? Are you trying to have a route that contains many ids / slugs ? Or a list of different links each with its own id / slug ?\n\n[0 likes]\n\ntravisf:\n\nSorry that wasn’t clear, I was just unsure of how your solution would translate into Routes.live_path(@socket, MyAppWeb.ThingsLive.Show, ??) that’s where I was confused if either the id or the slug would work as a param there.\n\n[0 likes]\n\nsodapopcan:\n\nHave a look at Phoenix.Param. You could do something like:\ndefimpl Phoenix.Param, for: YourApp.SomeContext.SomeSchema do def to_param(schema) do Map.get(schema, :slug, schema.id) end\nend\nTo offer some unsolicited advice, I think it’ll be far less of a headache in the future if you make slugs non-nullable fields and auto-generate them based off of some other field as to not force users to specify one. Take it or leave it, of course!\n\nRendered.to_iodata/1 (phoenix_live_view 0.18.17) lib/phoenix_live_view/engine.ex:153: Phoenix.HTML.Safe.Phoenix.LiveView.Rendered.to_iodata/3 (phoenix 1.7.1) lib/phoenix/controller.ex:1005: anonymous fn/5 in Phoenix.Controller.template_render_to_iodata/4 (telemetry 1.2.1) /home/steven/webdev/elixir/mono_phoenix_v01/deps/telemetry/src/telemetry.erl:321: :telemetry.span/3 (phoenix 1.7.1) lib/phoenix/controller.ex:971: Phoenix.Controller.render_and_send/4 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.action/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.phoenix_controller_pipeline/2 (phoenix 1.7.1) lib/phoenix/router.ex:425: Phoenix.Router.__call__/5 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.plug_builder_call/2 (mono_phoenix_v01 0.1.0) lib/plug/debugger.ex:136: MonoPhoenixV01Web.Endpoint.\"call (overridable 3)\"/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.call/2 (phoenix 1.7.1) lib/phoenix/endpoint/sync_code_reload_plug.ex:22: Phoenix.Endpoint.SyncCodeReloadPlugcompleted, \"true\"} -> from task in query_acc, where: task.completed == true {:completed, \"false\"} -> from task in query_acc, where: task.completed == false _ -> query_acc end end)\nwhich will filter the data we fetched from database and then return that.\nam i wrong in what i said till now?\nNote - i am a noob and have just started learning elixir if i am wrong in my understanding till now please mention why I am wrong and what i should read to understand better, thank for your patience.\n\n[0 likes]\n\negze:\n\nNo worries.\nquery = from(task in Task)\nwill not immediately execute anything. Ecto.Query is just data that knows what to query for. What makes it run against the DB is the Repo.all() which receives the Ecto.Query as argument.\nWhat is happening in the code is, we take the base query query = from(task in Task) and then add more things to it with Enum.reduce. Once we are done, we run it with Repo.all\n\n[3 likes]\n\nkokolegorille:\n\nYou do not hit database until You use Repo…\nUPDATE: as mentionned in the previous post\n\n[1 like]\n\n\nTitle: Conditionally render element at" <> ...
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+" necessarily, using or on different field with index usually result in query optimizer combine these two different index in bitwise or operation. Usually it’s not faster to do lookup one then the other because it cause two DB request network latency.\n2 Likes\n\n[2 likes]\n\nsodapopcan:\n\nOh interesting. What my my old colleague going on about then? lol. I tried an explain with an OR on the same column and it still gave me a sequence scan, so I guess I don’t understand like I thought I did and I have some more RTFMing to do.\n\n[0 likes]\n\ntravisf:\n\nAh, so you’d recommend implementing get_record/1 when the record is saved/updated and then using that field as the param in the route?\n\n[0 likes]\n\ntravisf:\n\nThis makes sense, but how does that translate into the route? Like if I had a list of Things what would I put in the Routes.live_path/3 as a param?\n\n[0 likes]\n\nbenwilson512:\n\ntravisf:\nLike if I had a list of ThingsCan you elaborate what you mean? Are you trying to have a route that contains many ids / slugs ? Or a list of different links each with its own id / slug ?\n\n[0 likes]\n\ntravisf:\n\nSorry that wasn’t clear, I was just unsure of how your solution would translate into Routes.live_path(@socket, MyAppWeb.ThingsLive.Show, ??) that’s where I was confused if either the id or the slug would work as a param there.\n\n[0 likes]\n\nsodapopcan:\n\nHave a look at Phoenix.Param. You could do something like:\ndefimpl Phoenix.Param, for: YourApp.SomeContext.SomeSchema do def to_param(schema) do Map.get(schema, :slug, schema.id) end\nend\nTo offer some unsolicited advice, I think it’ll be far less of a headache in the future if you make slugs non-nullable fields and auto-generate them based off of some other field as to not force users to specify one. Take it or leave it, of course!\n\nRendered.to_iodata/1 (phoenix_live_view 0.18.17) lib/phoenix_live_view/engine.ex:153: Phoenix.HTML.Safe.Phoenix.LiveView.Rendered.to_iodata/3 (phoenix 1.7.1) lib/phoenix/controller.ex:1005: anonymous fn/5 in Phoenix.Controller.template_render_to_iodata/4 (telemetry 1.2.1) /home/steven/webdev/elixir/mono_phoenix_v01/deps/telemetry/src/telemetry.erl:321: :telemetry.span/3 (phoenix 1.7.1) lib/phoenix/controller.ex:971: Phoenix.Controller.render_and_send/4 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.action/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/controllers/plays_page_controller.ex:1: MonoPhoenixV01Web.PlaysPageController.phoenix_controller_pipeline/2 (phoenix 1.7.1) lib/phoenix/router.ex:425: Phoenix.Router.__call__/5 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.plug_builder_call/2 (mono_phoenix_v01 0.1.0) lib/plug/debugger.ex:136: MonoPhoenixV01Web.Endpoint.\"call (overridable 3)\"/2 (mono_phoenix_v01 0.1.0) lib/mono_phoenix_v01_web/endpoint.ex:1: MonoPhoenixV01Web.Endpoint.call/2 (phoenix 1.7.1) lib/phoenix/endpoint/sync_code_reload_plug.ex:22: Phoenix.Endpoint.SyncCodeReloadPlugcompleted, \"true\"} -> from task in query_acc, where: task.completed == true {:completed, \"false\"} -> from task in query_acc, where: task.completed == false _ -> query_acc end end)\nwhich will filter the data we fetched from database and then return that.\nam i wrong in what i said till now?\nNote - i am a noob and have just started learning elixir if i am wrong in my understanding till now please mention why I am wrong and what i should read to understand better, thank for your patience.\n\n[0 likes]\n\negze:\n\nNo worries.\nquery = from(task in Task)\nwill not immediately execute anything. Ecto.Query is just data that knows what to query for. What makes it run against the DB is the Repo.all() which receives the Ecto.Query as argument.\nWhat is happening in the code is, we take the base query query = from(task in Task) and then add more things to it with Enum.reduce. Once we are done, we run it with Repo.all\n\n[3 likes]\n\nkokolegorille:\n\nYou do not hit database until You use Repo…\nUPDATE: as mentionned in the previous post\n\n[1 like]\n\n\nTitle: Conditionally render element at" <> ...
+```
+
 ## Train the model
 
 Now we can go about training the model! First, we need to extract the Axon model and parameters from the Bumblebee model map:
@@ -160,11 +231,33 @@ Now we can go about training the model! First, we need to extract the Axon model
 model
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
+  outputs: "container_37"
+  nodes: 859
+>
+```
+
 The Axon model actually outputs a map with `:logits`, `:hidden_states`, and `:attentions`. You can see this by using `Axon.get_output_shape/2` with an input. This method symbolically executes the graph and gets the resulting shapes:
 
 ```elixir
 [{input, _}] = Enum.take(train_batch_stream, 1)
 Axon.get_output_shape(model, input)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  cache: #Axon.None<...>,
+  hidden_states: #Axon.None<...>,
+  attentions: #Axon.None<...>,
+  cross_attentions: #Axon.None<...>,
+  logits: {4, 512, 50257}
+}
 ```
 
 For training LoRA adapters, we'll freeze the original layers, and append adapters to our target nodes
@@ -189,6 +282,16 @@ lora_model =
       end
     end
   )
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
+  outputs: "container_37"
+  nodes: 895
+>
 ```
 
 Now we can declare our training loop. You can construct Axon training loops using the `Axon.Loop.trainer/3` factory method with a model, loss function, and optimizer. We'll also adjust the log-settings to more frequently log metrics to standard out:
@@ -227,10 +330,715 @@ lora_params =
   |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 1000, compiler: EXLA)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+
+16:52:48.608 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
+
+16:53:23.611 [info] ptxas warning : Registers are spilled to local memory in function 'triton_softmax', 1284 bytes spill stores, 1284 bytes spill loads
+
+Epoch: 0, Batch: 950, loss: 3.2963820
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "decoder.blocks.7.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140095>
+      [-0.0015067235799506307, 0.011825020425021648, -0.015962932258844376, -0.009843949228525162, 0.017166582867503166, -0.0023309593088924885, 0.01716618798673153, -0.01785222440958023, 0.02480374090373516, -0.04544716328382492, -0.04233347252011299, 0.19252289831638336, 0.023084215819835663, 0.010606026276946068, 0.020862935110926628, -0.014164811000227928, 0.04407064616680145, -0.001367615768685937, 0.03417485952377319, 0.0010759946890175343, 0.020503727719187737, -0.018043607473373413, -0.00980320293456316, 0.028919916599988937, -0.003041631542146206, -0.041081931442022324, -0.030980169773101807, 0.0037019671872258186, 0.009434754960238934, -0.004209163598716259, 0.0016339614521712065, 0.02209661342203617, -0.014821838587522507, -0.02030492015182972, 0.03273279219865799, -0.04265918210148811, 0.00601721927523613, 0.00928163155913353, -0.028216741979122162, -0.007809154689311981, -0.03414953500032425, -0.011486138217151165, -0.006398558616638184, -0.014157279394567013, 0.010680632665753365, -0.06726251542568207, -0.0386282317340374, 0.007625897414982319, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140096>
+      [
+        [0.021402638405561447, 0.050967343151569366, 0.04545518010854721, -0.0109089445322752, -0.04193441942334175, -0.023326827213168144, 0.09840112924575806, 0.10209610313177109, 0.05283593386411667, 0.034540046006441116, 0.05829596519470215, -0.1514427661895752, 0.0445757620036602, -0.014143920503556728, 0.009306855499744415, 0.07754021883010864, 0.11058628559112549, -0.11392591893672943, 0.05147108808159828, 0.014121315442025661, 0.0954991802573204, 0.032277483493089676, 0.09881661087274551, 0.13257817924022675, -0.02898217923939228, -0.08612077683210373, -0.10402683913707733, 0.032209958881139755, 0.07464122027158737, -0.04770876094698906, -0.12873615324497223, 0.04697330668568611, -0.04240507632493973, -0.058180730789899826, 9.088746155612171e-4, 0.05110365152359009, 0.20511674880981445, -0.020681431517004967, -0.01085528265684843, -0.1648135483264923, 0.038136307150125504, -0.01178289670497179, -0.005067809019237757, -0.11831668764352798, 0.08509404212236404, -0.008230645209550858, 0.08802532404661179, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.0.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139932>
+      [0.045023269951343536, 0.03226305544376373, -0.08854541927576065, -0.008162474259734154, 0.11771649867296219, -0.2388763129711151, -0.0758744403719902, 0.029564158990979195, 0.04648246616125107, -0.0027773359324783087, -0.0038145091384649277, 0.020842736586928368, 0.009267736226320267, 0.03588847070932388, -0.1409134566783905, 0.06138546019792557, -0.06896162778139114, -0.012951075099408627, 0.06189567223191261, -0.017779534682631493, 0.021359939128160477, -0.05501718819141388, 0.02197490818798542, 0.0011829776922240853, 0.04943571239709854, 0.04192988574504852, 0.07189816981554031, -0.020239252597093582, 0.06509828567504883, 0.10963835567235947, 0.04001740366220474, 0.03582198917865753, 0.06442175805568695, -0.031552474945783615, 0.020920773968100548, -0.05902986228466034, 0.019308188930153847, -0.03758474066853523, 0.04784710705280304, 0.1294996589422226, 0.0656597912311554, 0.16015131771564484, 0.0036071811337023973, 0.013143805786967278, 0.08715710043907166, -0.05141830816864967, 0.10630246251821518, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139933>
+      [
+        [-0.10660640895366669, 0.1527840495109558, 0.03310481086373329, 0.023700203746557236, 0.02993733063340187, -0.07244370877742767, -0.55028235912323, 0.10002829134464264, 0.10845957696437836, -0.06486132740974426, -0.050516318529844284, -0.04687585309147835, -0.019445782527327538, -0.031208522617816925, -0.1474572867155075, 0.00985053088515997, 0.14931969344615936, 0.07806558161973953, -9.190309210680425e-4, 0.23059925436973572, -0.021436616778373718, 0.04766186699271202, -0.07279295474290848, 0.06045343354344368, 0.013344594277441502, 0.16240741312503815, 0.11852358281612396, -0.02879641018807888, 0.05925842374563217, 0.12395480275154114, -0.09108705073595047, -0.01235614251345396, 0.03735384717583656, -0.022464079782366753, -0.045593757182359695, -0.27166813611984253, -0.04527653008699417, 0.03668154403567314, 0.08654572069644928, 0.023413583636283875, -0.08427132666110992, -0.03452301397919655, 0.03188594430685043, -0.043258294463157654, -0.05696522071957588, 0.018179383128881454, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140006>
+      [0.020700350403785706, -0.26381751894950867, -0.1094379648566246, 0.2875203490257263, 0.2774174213409424, 0.04697851091623306, 0.062320489436388016, 0.025348320603370667, -0.1447840929031372, 0.23507045209407806, -0.22111418843269348, -0.04685695096850395, 0.04695908725261688, -0.08256081491708755, 0.049968790262937546, 0.0957123190164566, 0.008569050580263138, 0.36251145601272583, 0.026079699397087097, 0.14226137101650238, 0.30309706926345825, -0.051855895668268204, -0.041972529143095016, 0.045346442610025406, 0.09475845843553543, 0.03463638201355934, 0.11646518856287003, -0.13341329991817474, 0.10428164899349213, -0.16626955568790436, 0.008327489718794823, 0.11973997205495834, 0.1891246736049652, 0.27689802646636963, 0.07897856086492538, 0.2317073494195938, 3.121290064882487e-4, 0.014473449438810349, -0.22102972865104675, -0.024565676227211952, 0.0030907581094652414, -0.10433603823184967, 0.2853952944278717, 0.022545315325260162, 0.10485214740037918, 0.2518227994441986, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140007>
+      [
+        [-0.013124971650540829, -0.06660282611846924, -0.0697135180234909, -0.030710719525814056, 0.042854610830545425, 0.008408921770751476, -0.03381262347102165, 0.06493787467479706, -0.03271748125553131, 0.12311036139726639, 0.1337415724992752, 0.10496947169303894, 0.0691475197672844, 0.015230960212647915, -0.07322822511196136, -0.05089348554611206, 0.09375757724046707, -0.13991476595401764, -0.05577455088496208, 0.04202907159924507, -0.028392035514116287, -0.07780732214450836, -0.05117521435022354, -0.010147273540496826, -0.09198098629713058, -0.15541940927505493, -0.09189142286777496, 0.04543245583772659, 0.05888330563902855, 0.007717895321547985, -0.055146679282188416, -0.10239534080028534, 0.01507049985229969, -0.01887754164636135, -0.06463737785816193, -0.10168686509132385, -0.04603245481848717, -0.03781770542263985, 0.08949298411607742, -0.014968409202992916, 0.01719915308058262, 0.01886896975338459, 0.040570300072431564, 0.052193399518728256, -0.04610079526901245, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.6.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140070>
+      [0.045025456696748734, 0.009542928077280521, 0.016986900940537453, 0.013239625841379166, 0.022165829315781593, -0.02997750975191593, -0.05318791791796684, 0.030291369184851646, 0.021082192659378052, 0.014847509562969208, -1.6169920513675606e-7, 0.0210530087351799, 0.056806933134794235, 0.009754392318427563, -0.06860926002264023, 0.03423593193292618, -0.02938588336110115, 0.015446092002093792, 0.010956122539937496, -0.02942276932299137, 0.03855720907449722, 0.01702086068689823, -0.005053986329585314, 0.017972847446799278, 0.014045481570065022, 0.021662695333361626, 0.02321026474237442, 0.04095667600631714, 0.0021895733661949635, 0.016517585143446922, -0.004257701337337494, -0.013539420440793037, -0.01618128828704357, -0.007974829524755478, -0.004954650532454252, -0.03999199718236923, -0.02632948011159897, -0.01814391277730465, 0.004013486206531525, 0.007407412398606539, 0.001718125189654529, 0.019525639712810516, 0.0014584340387955308, 0.022858886048197746, 5.235132412053645e-4, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140071>
+      [0.25878557562828064, 0.2482416182756424, 0.27244293689727783, 0.2566904127597809, 0.2704152762889862, 0.2627618908882141, 0.29589709639549255, 0.18097728490829468, 0.2705056071281433, 0.2587742209434509, 0.26464471220970154, 0.2627030909061432, 0.2763660252094269, 0.26602861285209656, 0.2792193293571472, 0.262694776058197, 0.2730119526386261, 0.2646535038948059, 0.24892735481262207, 0.24463066458702087, 0.2625494599342346, 0.2543585002422333, 0.2724483907222748, 0.23977135121822357, 0.2607770562171936, 0.25832539796829224, 0.2607426345348358, 0.2576335072517395, 0.2551948130130768, 0.2608013451099396, 0.2707134485244751, 0.2568177878856659, 0.2546869218349457, 0.24516521394252777, 0.2724584937095642, 0.27050986886024475, 0.22996947169303894, 0.2724611461162567, 0.2426939308643341, 0.24848425388336182, 0.2568362355232239, 0.2662496268749237, 0.2592116594314575, 0.2666124701499939, ...]
+    >
+  },
+  "decoder.blocks.11.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139983>
+      [0.105723537504673, 0.11879222095012665, 0.006737913005053997, 0.05425174906849861, -0.020953308790922165, 0.00772686256095767, 0.05538606271147728, 0.05174220725893974, 0.02458597719669342, 0.05650372430682182, 0.07260715216398239, 0.015075696632266045, 0.07118107378482819, -0.02622274123132229, -0.004771863576024771, 0.13389313220977783, -0.04042479023337364, -0.09605908393859863, 0.05143333226442337, -0.0777275338768959, -0.038933414965867996, -0.01103443093597889, 0.22768071293830872, -0.051514096558094025, -0.09891602396965027, 0.0014073842903599143, -0.04144133999943733, 0.034522294998168945, -0.009654851630330086, 0.005805726628750563, 0.04466322436928749, -0.047319527715444565, -0.009854177013039589, 0.01743702031672001, 0.1440771073102951, -0.12892374396324158, 0.18401136994361877, -0.017713360488414764, -0.21362674236297607, 0.06416985392570496, 0.07322429120540619, 0.08671480417251587, 0.0764789879322052, 0.057795871049165726, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139984>
+      [
+        [0.06805934756994247, 0.09200220555067062, -0.03102017380297184, -0.20520317554473877, 0.06265048682689667, 0.17043784260749817, 0.037615444511175156, -0.24390925467014313, -0.06584632396697998, -0.36999693512916565, 0.19122055172920227, 0.07945571839809418, 0.008697953075170517, 0.19716542959213257, 0.17863412201404572, -0.01731661520898342, -0.3208216726779938, 0.21022184193134308, 0.080193892121315, 0.07145563513040543, -0.24923168122768402, -0.050284698605537415, -0.2518293559551239, 0.2810163199901581, -0.28573331236839294, 0.12340781837701797, -0.0859503522515297, 0.08418150991201401, -0.03493265062570572, 0.13855530321598053, -0.241315558552742, 0.15032462775707245, -0.25630655884742737, -0.03904435783624649, 0.0643249899148941, 0.26296404004096985, 0.44665995240211487, -0.001308600651100278, 0.16780276596546173, -0.14047899842262268, -0.03252283111214638, -0.3422131836414337, -0.15174603462219238, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140027>
+      [0.01611318439245224, 1.9620818784460425e-4, -0.033592935651540756, -0.014356587082147598, -0.010978053323924541, -0.005805983208119869, 0.0022555338218808174, 0.007051336579024792, 0.014428694732487202, -0.019858360290527344, -0.058242809027433395, -0.027789494022727013, -0.021741623058915138, 0.02190697006881237, -0.0035076746717095375, 0.002187394769862294, -0.022275205701589584, -0.009000930935144424, 0.0014367415569722652, -0.02442094311118126, -0.02785932831466198, -0.027073200792074203, 0.009673072025179863, -0.01975858025252819, -0.006040024105459452, -0.005454181227833033, -0.012051430530846119, 0.007628345862030983, -0.0019122350495308638, -0.031798556447029114, -0.03979314863681793, 0.0018334127962589264, 5.315942107699811e-4, -0.02355266362428665, 0.019198285415768623, -0.01209992729127407, 0.011508915573358536, 0.033759962767362595, 0.003140085143968463, -0.43169018626213074, -0.004638292361050844, 0.029909860342741013, -0.026687445119023323, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140028>
+      [
+        [0.02292151376605034, 0.0338389091193676, -0.047796934843063354, 0.09596998244524002, 0.045752089470624924, -0.030947083607316017, -0.06484285742044449, -0.021927157416939735, 0.08957719802856445, -0.06526286900043488, 0.048477549105882645, -0.007700455840677023, -0.09442861378192902, -0.13685542345046997, -0.10288318246603012, -0.09903551638126373, 0.17210477590560913, -0.014380788430571556, -0.081391841173172, -0.09592964500188828, -0.20048144459724426, -0.014696544967591763, 0.08353224396705627, 0.10173220932483673, -0.05892166867852211, -0.0928846076130867, 0.07746145129203796, 0.12805286049842834, -0.14344947040081024, 0.12638360261917114, 0.03233393654227257, 0.044042039662599564, -0.0408482551574707, -0.08512827754020691, 0.17795124650001526, -0.18981613218784332, -0.04125617817044258, 0.018192069604992867, 0.19313742220401764, -0.08462966978549957, 0.13086268305778503, 0.18106544017791748, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140023>
+      [-0.014248297549784184, -0.240375816822052, -0.018260201439261436, 0.11563233286142349, 0.18061132729053497, 0.04692136496305466, -0.009259623475372791, -0.05987045168876648, -0.10537739843130112, 0.10199987143278122, -0.10119312256574631, 0.054955385625362396, 0.08877909928560257, -0.034204259514808655, -0.030978145077824593, -0.14948132634162903, 0.013923843391239643, 0.22173760831356049, -0.044307757169008255, 0.11177702248096466, 0.25232768058776855, -0.011090553365647793, -0.02736673317849636, -0.05436551198363304, 0.035498980432748795, 0.06144917383790016, 0.10569152981042862, -0.06352245807647705, -0.014585292898118496, -0.08527898788452148, 0.06996647268533707, 0.15424810349941254, 0.2633742094039917, 0.07891955971717834, 0.10157502442598343, 0.15565523505210876, -0.05072539672255516, -0.015324545092880726, -0.13633786141872406, -0.0920839011669159, 0.02864094078540802, -0.1776469349861145, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140024>
+      [
+        [0.06602837890386581, -0.005861711222678423, -0.03592158108949661, -0.17321670055389404, -0.040567655116319656, -0.12914139032363892, -0.039053335785865784, 0.055556997656822205, -0.03793487325310707, -0.040671199560165405, -0.10253544896841049, -0.010256040841341019, -0.046774111688137054, -0.04418528825044632, -0.19765710830688477, 0.03096650168299675, 0.04684501513838768, -0.0827573910355568, 0.06590650230646133, 0.0626329854130745, -0.03907793387770653, -0.08920115977525711, 0.12399065494537354, 0.11888366937637329, 0.04018740355968475, -0.06762197613716125, -0.007350870408117771, 0.0679413229227066, -0.05717582628130913, -0.006823679432272911, -0.037478987127542496, -0.022401340305805206, -0.026354540139436722, -0.16326986253261566, 0.026277117431163788, -0.04454047232866287, -0.19500863552093506, -0.10626175254583359, 0.09581570327281952, 9.76486480794847e-4, 0.03719896450638771, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.7.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140085>
+      [0.003023461438715458, -0.0034503634087741375, -0.05022025108337402, 0.1445682793855667, -0.061383385211229324, -0.18525145947933197, 0.05382299795746803, 0.09621239453554153, 0.22644995152950287, 0.13868243992328644, -0.10454718768596649, -0.0445207841694355, 0.17207269370555878, 0.13456888496875763, -0.08831684291362762, -0.02446838468313217, -0.031328264623880386, 0.12339051067829132, 0.055783338844776154, -0.06627967208623886, 0.12010461091995239, -0.005991296377032995, -0.012475112453103065, -0.0091325668618083, -0.12514269351959229, -0.03106873109936714, -0.07901277393102646, 0.10679206997156143, 0.023926347494125366, 0.19130189716815948, -0.07669995725154877, -3.717075742315501e-4, -0.022119715809822083, -0.12196514755487442, -0.006166365463286638, -0.003968436270952225, 0.17010942101478577, -0.08083401620388031, -0.06381057947874069, 0.012830626219511032, 0.008812617510557175, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140086>
+      [
+        [0.02272615395486355, -0.03426380455493927, 0.10830746591091156, -0.0698532909154892, -0.04444117844104767, -0.1163613572716713, -0.10804831981658936, 0.027915891259908676, -0.06091436743736267, 0.11493780463933945, -0.12441886961460114, -0.12758924067020416, -0.08719192445278168, -0.08544804900884628, 0.01870325393974781, 0.06337859481573105, -0.05752550810575485, 0.08484397083520889, 0.10050169378519058, -8.142094011418521e-4, 0.04208269715309143, -0.0010115094482898712, 0.016743609681725502, -0.14341019093990326, -0.11040765047073364, -0.015847202390432358, 0.06745976209640503, 0.028722982853651047, 0.034336477518081665, -0.02375819906592369, -0.04028434678912163, 0.04014326259493828, -0.0828038826584816, 0.04731905460357666, -0.030171439051628113, 0.007872296497225761, -0.0554569847881794, -0.057010941207408905, -0.03682035207748413, 0.003613386768847704, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140010>
+      [3.5320030292496085e-4, -0.02352035790681839, 0.03579441457986832, -0.00819009356200695, -0.013341247104108334, 0.22570614516735077, 0.014364250004291534, 0.01957814209163189, -0.0029258071444928646, -0.005615453235805035, 0.006173497997224331, 0.03394452482461929, 0.04145542159676552, 0.02271554060280323, 0.027301738038659096, 0.023053526878356934, -0.030637608841061592, 0.0011183557799085975, 0.009655783884227276, -0.0031652075704187155, 0.004611491225659847, -8.690875256434083e-4, -0.0060260300524532795, -0.009716540575027466, 0.014348393306136131, -0.010869566351175308, -0.015734069049358368, 0.02538462169468403, -0.02972058765590191, -5.710391560569406e-4, 9.462513262405992e-4, 0.022110195830464363, 0.004091514740139246, 9.700193768367171e-4, 0.009012877009809017, -0.013626644387841225, 0.38099005818367004, 0.01451069489121437, -0.023601410910487175, 0.018054811283946037, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140011>
+      [
+        [-0.05810696259140968, 0.06249383091926575, -0.16588400304317474, 0.09654977917671204, 0.09147700667381287, 0.048064541071653366, -0.09367276728153229, 0.014363005757331848, 0.10144679248332977, 0.0233471617102623, 0.006492226850241423, 0.024173308163881302, -0.08379942923784256, 0.035400889813899994, 0.011924143880605698, 0.06395914405584335, -0.025091668590903282, 0.23154862225055695, 0.04634566977620125, -0.03464064002037048, 0.019783668220043182, -0.09660620987415314, -0.08186054974794388, -0.18600694835186005, -0.11908779293298721, 0.21912004053592682, -0.09747152775526047, -0.010526714846491814, -0.015264575369656086, -0.12838749587535858, 0.061404332518577576, -0.07993568480014801, -0.016672959551215172, 0.007367889396846294, 0.06115908920764923, -0.00501360883936286, -0.009648752398788929, -0.11571478843688965, 0.022876223549246788, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_28" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140148>
+      [395485748, 2935899615]
+    >
+  },
+  "decoder.blocks.2.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140000>
+      [-0.0654396265745163, 0.10812345892190933, 0.04286130890250206, -0.2760961353778839, 0.08625604957342148, -0.2286910116672516, -0.04461458697915077, 7.275498937815428e-4, 0.10620112717151642, 0.10470309853553772, -0.08921228349208832, 0.07638224959373474, 0.1359548419713974, 0.011987983249127865, -0.13395175337791443, -0.012165425345301628, -0.02094808965921402, -0.24327068030834198, 0.19702652096748352, -0.11469811946153641, 0.06039329245686531, -0.0885312408208847, 0.03518642485141754, -0.032149139791727066, 0.051021404564380646, 0.05498753488063812, 0.08870009332895279, 0.06739293038845062, 0.0710294097661972, 0.13408461213111877, 0.029301894828677177, -0.00930361170321703, 0.025734776630997658, -0.24615506827831268, -0.08097236603498459, -0.06227843463420868, 0.005404133815318346, -0.11257304251194, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140001>
+      [
+        [-0.02398330718278885, -0.20910729467868805, -0.029130421578884125, -0.014159053564071655, 0.12113775312900543, -0.02065293677151203, -0.11999223381280899, -0.269276887178421, 7.631823536939919e-4, 0.04650465399026871, -0.045628879219293594, -0.12281503528356552, 0.02982284128665924, 0.06332483142614365, -0.05124947428703308, 0.004213565960526466, 0.05839945375919342, 0.1387341022491455, 0.039438631385564804, -0.07732643932104111, 0.11901428550481796, -0.0635095089673996, 0.06668639183044434, 0.15541701018810272, -0.04893676936626434, -0.13186554610729218, 0.03706846386194229, 0.08605990558862686, -0.20225566625595093, -0.11350183933973312, 0.06946399807929993, -6.101589533500373e-4, -0.0847146287560463, -0.04157274588942528, 0.0049753207713365555, -0.015184903517365456, -0.16200494766235352, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140021>
+      [-0.09291772544384003, -0.04217880591750145, -0.020356424152851105, 0.04034513235092163, -0.013874712400138378, -0.11893210560083389, -0.05924098193645477, -0.027365664020180702, 0.05266174301505089, 0.008417871780693531, -0.0861397385597229, -0.019344178959727287, -0.06396947801113129, 0.046350132673978806, 0.05676386505365372, -5.086865712655708e-6, 0.10372238606214523, -0.21678526699543, -0.09768351167440414, -0.009167345240712166, 0.08033648878335953, 0.0944061353802681, 0.08438227325677872, 0.22630733251571655, -0.14517657458782196, -0.007395234890282154, -0.13697558641433716, -0.059589944779872894, 0.1007838323712349, 0.006305344868451357, -0.16571001708507538, 0.011307205073535442, 0.07076525688171387, -0.007749190088361502, -0.03437885269522667, 0.11359181255102158, -0.0808584913611412, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140022>
+      [
+        [0.07191380113363266, -0.08377204835414886, 0.15178976953029633, 0.2953050136566162, 0.2969595789909363, 0.017495974898338318, -0.2548777759075165, -0.10065208375453949, 0.23874078691005707, -0.013963986188173294, 0.016722165048122406, 0.29725781083106995, -0.05463255196809769, -0.26017990708351135, 0.042508628219366074, 0.14374642074108124, 0.3041999638080597, 0.3108743131160736, -0.03671329841017723, -0.14828334748744965, -0.36135849356651306, 0.13315536081790924, 0.002669523935765028, 0.342965304851532, -0.00918323453515768, 0.5080976486206055, -0.33983874320983887, 0.34413501620292664, 0.34606099128723145, -0.09834522753953934, 0.09321682155132294, 0.027324317023158073, -0.029650583863258362, -0.07398593425750732, 0.28067755699157715, 0.086429163813591, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.5.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140063>
+      [395485748, 2933808593]
+    >
+  },
+  "lora_11" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140168>
+      [
+        [0.0303871538490057, 0.034703999757766724, 0.04268919676542282, 0.05133655667304993, 0.0368012860417366, -0.030514923855662346, -0.0416930615901947, -0.011150693520903587, 0.015394182875752449, -0.02430765889585018, 0.0428776815533638, 0.009937483817338943, 0.036220960319042206, -0.010241915471851826, -0.10276426374912262, -0.04403025656938553, -0.020057911053299904, -0.017065051943063736, 0.019772730767726898, -0.050694774836301804, 0.03455282375216484, 0.013080624863505363, -0.028123702853918076, -0.09297559410333633, -4.2486845632083714e-4, 0.03334851190447807, -0.002323211869224906, 0.044918034225702286, 0.02364405244588852, 0.06014171987771988, 0.06975847482681274, 0.014313596300780773, -0.10006845742464066, 0.024936003610491753, 0.04648061841726303, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140169>
+      [
+        [-0.01341763325035572, 0.001745298271998763, -0.004422007128596306, 0.0036782431416213512, -0.0013325929176062346, -0.004237375687807798, 0.004899282474070787, -0.010768930427730083],
+        [-0.013615724630653858, -0.005749325267970562, -0.002706090919673443, -0.0026495372876524925, 0.00577892130240798, -0.006679284851998091, -0.01087779551744461, 0.0030079572461545467],
+        [0.008594131097197533, -0.02028781734406948, -0.00462851719930768, 0.011044560000300407, 0.009235598146915436, -0.003718598512932658, 0.01663711480796337, -0.01283794641494751],
+        [-0.009187577292323112, -0.003204324282705784, -0.01720486208796501, 0.020057890564203262, 0.012441088445484638, -0.012259159237146378, 0.014056973159313202, -0.02572523057460785],
+        [0.015347938984632492, 0.013549357652664185, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140034>
+      [-0.05897606164216995, 0.15732403099536896, -0.08401917666196823, -0.04356243461370468, -5.054371431469917e-4, -0.15412287414073944, -0.017296316102147102, 0.013370297849178314, 0.18167349696159363, 0.14976365864276886, -0.033649567514657974, -0.12340114265680313, 0.11543204635381699, 0.1179199367761612, -0.16670309007167816, 0.03197641670703888, -0.09725514054298401, -0.13734258711338043, 0.05221153423190117, -0.19777816534042358, -0.016869299113750458, -0.09240839630365372, -0.041709307581186295, 0.04953768476843834, -0.00948934257030487, -0.061544936150312424, 0.055073339492082596, 0.10132436454296112, 0.09503704309463501, 0.2767695188522339, -0.04178015887737274, -0.09199224412441254, -0.13981661200523376, -0.18259884417057037, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140035>
+      [
+        [-0.016589239239692688, 0.033356476575136185, -0.025944791734218597, -0.06458347290754318, -0.008617261424660683, -0.06050972640514374, 0.026528408750891685, -0.018711822107434273, 0.06334453076124191, -0.07016438990831375, -0.040474455803632736, -0.08900412917137146, -0.05415213108062744, 0.00924048200249672, -0.09849966317415237, 0.017269760370254517, 0.03402997925877571, -0.0723804235458374, 0.06440147757530212, 0.11115777492523193, -0.04786305129528046, 0.013474693521857262, 0.18404416739940643, -0.037795290350914, -0.1344190388917923, -0.041169364005327225, -0.02169586904346943, -0.09167039394378662, -0.047637294977903366, -0.010682673193514347, -0.017419137060642242, -0.09429912269115448, 0.09434686601161957, ...],
+        ...
+      ]
+    >
+  },
+  "lora_31" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140212>
+      [
+        [-0.05123847723007202, 0.03200573846697807, -0.035302646458148956, 0.0035705065820366144, 0.00828003790229559, 0.01592763513326645, -0.07856834679841995, 4.1644080192781985e-4, 0.03700065612792969, -0.027236154302954674, 0.032758284360170364, -0.0033695013262331486, -0.01823640801012516, -0.0044596088118851185, -0.03976435214281082, -0.03937491029500961, -0.03248017281293869, 0.05602414160966873, 0.06967823207378387, 0.027361035346984863, -0.057754743844270706, -0.01551762130111456, 0.012375366874039173, -0.03864896669983864, 0.003483318956568837, 0.0380951464176178, 0.01618083566427231, 0.012474959716200829, -0.006914897821843624, 0.040192604064941406, 0.042561423033475876, -0.027684412896633148, 0.04079823195934296, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140213>
+      [
+        [0.01846129260957241, 0.05123482272028923, -0.0077723050490021706, -0.043549008667469025, -0.00542757473886013, -0.00319622247479856, -0.011883595027029514, 0.025079190731048584],
+        [0.028195740655064583, 0.038125213235616684, 0.010875995270907879, -0.03570159524679184, 0.01509177777916193, -0.013368704356253147, 0.013174167834222317, 0.013972078450024128],
+        [-0.013352924957871437, -0.0324133075773716, 0.0013021373888477683, 0.020818570628762245, 0.0038150688633322716, -0.006065065506845713, 0.005447504110634327, -0.007347347214818001],
+        [-0.007927276194095612, 0.003419476328417659, -0.03361053392291069, -0.005780062638223171, -0.04511982575058937, 0.022885488346219063, -0.023905238136649132, -0.010218543000519276],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140019>
+      [0.02195732854306698, 0.035705193877220154, 0.04064951837062836, -0.025932105258107185, 0.014330854639410973, -0.039580412209033966, -0.1155749261379242, 0.028433658182621002, 0.030217133462429047, -0.007304288912564516, 0.002263169502839446, 0.048969969153404236, 0.05460219457745552, 0.004443574231117964, -0.07364215701818466, 0.029881520196795464, -0.01567690446972847, -0.01119413785636425, 0.010527174919843674, -0.014802615158259869, 0.0057569448836147785, -0.020488295704126358, 0.024373553693294525, -0.02502831257879734, 0.019044460728764534, 0.02883622609078884, 0.056766364723443985, 0.021289346739649773, 0.003697927575558424, 0.03079884685575962, 0.0382881686091423, 0.011968711391091347, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140020>
+      [0.28222545981407166, 0.3131215572357178, 0.3034003973007202, 0.3393371105194092, 0.3154321610927582, 0.3309932053089142, 0.30264604091644287, 0.13720403611660004, 0.3059060573577881, 0.3251676857471466, 0.30764150619506836, 0.3226858973503113, 0.3249446153640747, 0.307298868894577, 0.28870701789855957, 0.3071806728839874, 0.2878659665584564, 0.3310546875, 0.29914483428001404, 0.2799876928329468, 0.350590318441391, 0.31099772453308105, 0.33301326632499695, 0.29779165983200073, 0.30957064032554626, 0.3072805106639862, 0.32713234424591064, 0.3132126033306122, 0.3168300688266754, 0.3154486119747162, 0.3116898834705353, ...]
+    >
+  },
+  "lora_10" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140166>
+      [
+        [-0.02526802197098732, 0.051099590957164764, 0.02089262567460537, 0.01721167378127575, 0.04552591219544411, 0.017134636640548706, -0.006176800467073917, 0.033124905079603195, 0.01132213044911623, 0.0616471953690052, 0.021963071078062057, -0.002483881078660488, -0.014565609395503998, -0.022864971309900284, -0.023564301431179047, 0.010518509894609451, -0.03525565192103386, -0.009646250866353512, 0.010141100734472275, 0.03131367266178131, 0.03204824775457382, 0.03144790977239609, 0.029491465538740158, -0.03118557669222355, 0.03791430592536926, 0.016069430857896805, 0.007299310527741909, -0.06473411619663239, -0.030138103291392326, 0.048046864569187164, -0.011715150438249111, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140167>
+      [
+        [0.0012337074149399996, 0.00319110881537199, -0.012200998142361641, 0.01798088662326336, -0.002325503621250391, 0.010902957059442997, 0.013244912959635258, -0.017299965023994446],
+        [0.018661078065633774, -0.03585294261574745, 0.0237609650939703, -0.013835582882165909, 0.006358449812978506, -0.020456314086914062, -0.01821039244532585, 0.024996504187583923],
+        [-0.028477001935243607, 0.016169147565960884, 0.002199522452428937, -0.020427893847227097, 0.011084145866334438, -0.005120525136590004, -0.0343254879117012, 0.04542582482099533],
+        [-0.03220353275537491, -0.020250491797924042, 0.02533268928527832, -0.02079431712627411, 0.017970317974686623, -0.005943475291132927, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140123>
+      [-0.1255052387714386, 0.2206331193447113, 0.02155466005206108, -0.06883163750171661, -0.1582368165254593, -0.03266475349664688, 0.08761484920978546, -0.06262274831533432, 0.08110350370407104, -0.06443772464990616, -0.01988857425749302, -0.14905107021331787, 0.026666700839996338, 0.11045331507921219, 0.12034416198730469, -0.03482687100768089, -0.06882551312446594, -0.06385401636362076, 0.10434503108263016, -0.06925361603498459, 0.004499129019677639, 0.029036764055490494, 0.12643346190452576, 0.06261695176362991, 0.007506237365305424, -0.03166307136416435, 0.005090613849461079, 0.12981073558330536, 0.042653005570173264, -0.0895552709698677, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140124>
+      [
+        [0.09414546191692352, -0.05349555239081383, -0.09394310414791107, 0.0680985152721405, 0.05514451488852501, 0.10338378697633743, -0.027529548853635788, 0.03738649934530258, 0.12017187476158142, 0.10639435052871704, -0.21103039383888245, 0.09546253830194473, 0.06053944304585457, 0.010116199031472206, 0.13734182715415955, -0.06583978235721588, -0.04140675812959671, 0.1631747931241989, -0.20215000212192535, 0.045266926288604736, 0.09429733455181122, 0.09323552995920181, -0.008121903985738754, 0.0823206678032875, 0.0871056392788887, -0.15799662470817566, 0.13381333649158478, -0.03152550011873245, -0.23124545812606812, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.8.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140100>
+      [-0.11210184544324875, -0.12243035435676575, -0.18696080148220062, -0.09358573704957962, -0.07174187898635864, -0.09109503775835037, -0.22353070974349976, -0.23647837340831757, -0.009258066304028034, -0.07567327469587326, -0.020744603127241135, 0.015013153664767742, -0.05726751312613487, -0.037477463483810425, -0.02229940891265869, -0.14848092198371887, -0.038814179599285126, 0.02283428981900215, -0.17796941101551056, -0.03959912434220314, 0.026215065270662308, -0.024661418050527573, -0.16912145912647247, -0.022491857409477234, -0.0367843434214592, -0.03149944916367531, -0.07467391341924667, -0.23281385004520416, -0.15074151754379272, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140101>
+      [
+        [0.07281597703695297, 0.23076365888118744, 0.056254733353853226, -0.007391960825771093, 0.37602195143699646, 0.026575006544589996, -0.0559421107172966, 0.24213534593582153, 0.17022763192653656, 0.008780462667346, 0.008517129346728325, -0.004474610555917025, 0.08918315172195435, -0.0734836533665657, -0.2731582224369049, -0.0711795762181282, -0.09748861193656921, 0.05456811189651489, -0.017072979360818863, 0.02093295007944107, -0.0573551245033741, -0.2868148684501648, -0.0835830420255661, -0.07690536230802536, -0.01711919531226158, -0.1358148157596588, -0.09262753278017044, -0.16049614548683167, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140127>
+      [0.05707442760467529, 0.035462647676467896, -0.0991213247179985, 0.13527709245681763, -0.028422338888049126, -0.025333665311336517, 0.009800232946872711, 0.0038071630988270044, 0.2587926983833313, -0.2757236957550049, -0.20594574511051178, -0.10678356885910034, 0.07663259655237198, 0.10082900524139404, 0.09312675893306732, 0.02456960454583168, -0.02361578680574894, 0.027035534381866455, -0.17550106346607208, -0.019421570003032684, 0.17456819117069244, -0.27237164974212646, -0.06578843295574188, 0.7469214200973511, -0.16401293873786926, -0.040414296090602875, 0.0813840925693512, 0.22788934409618378, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140128>
+      [
+        [0.07092145085334778, -0.1273377686738968, 0.18363283574581146, 0.0030052068177610636, -0.11931692808866501, 0.09142619371414185, 0.09066392481327057, -0.11962020397186279, -0.11546863615512848, -0.2486332207918167, -0.01928895153105259, -0.13211512565612793, 0.012719957157969475, -0.058824148029088974, -0.024515893310308456, -0.06520464271306992, -0.1823996901512146, 0.08205809444189072, -0.14308585226535797, -0.02228454314172268, 0.07376360148191452, 0.1657320261001587, 0.12012247741222382, -0.05113732069730759, 0.09645874798297882, -0.05014803633093834, 0.16555407643318176, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.6.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140072>
+      [-0.1274530589580536, -0.12059053033590317, -0.007807011716067791, 0.10612983256578445, -0.15291491150856018, 0.02204704098403454, -0.018509021028876305, -0.052053213119506836, -0.12142118811607361, 0.09243933856487274, -0.07746855169534683, -0.2270767092704773, 0.06773963570594788, 0.20025405287742615, 0.08527366816997528, 0.17828650772571564, -0.23929782211780548, 0.08052106946706772, -0.04288453236222267, -0.10904651135206223, -0.07623006403446198, 0.12980422377586365, -0.022937437519431114, 0.1890099197626114, 0.033789169043302536, -0.01818382926285267, -0.09066783636808395, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140073>
+      [
+        [0.23245984315872192, -0.051963526755571365, 0.03376476839184761, -0.17533107101917267, -0.0015645339153707027, -0.21227991580963135, -0.20261846482753754, 0.2514711320400238, 0.11193699389696121, 0.07263650000095367, 0.1105310469865799, 0.12566789984703064, -0.029312685132026672, -0.18712376058101654, -0.18661442399024963, -0.20233362913131714, -0.25359874963760376, -0.06487743556499481, -0.08297345787286758, 0.03883111849427223, 0.027809424325823784, 0.05575752630829811, 0.0707707554101944, -0.04197012260556221, -8.136677788570523e-4, 0.01103792805224657, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.10.self_attention_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139979>
+      [0.030510496348142624, 0.006001842673867941, 0.048768121749162674, 0.01165001466870308, 0.005879620555788279, 0.010598479770123959, -0.0672491267323494, 0.025556962937116623, 0.013904724270105362, 6.435069954022765e-4, 0.007581857033073902, 0.012246792204678059, 0.026725852862000465, 0.02789079211652279, 0.04797949641942978, -0.004149633459746838, 0.0409918837249279, 0.034725841134786606, -0.0010700526181608438, 0.01325390674173832, 0.03363116458058357, 0.023286549374461174, 0.02105352096259594, 0.025586696341633797, 0.020323842763900757, 0.006301491055637598, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139980>
+      [0.426937460899353, 0.3798982501029968, 0.38925623893737793, 0.36285722255706787, 0.3721630275249481, 0.3487066626548767, 0.5020099878311157, 0.35842880606651306, 0.3820701539516449, 0.32065778970718384, 0.4148608148097992, 0.35868051648139954, 0.3574266731739044, 0.3837886452674866, 0.44628968834877014, 0.397741436958313, 0.3976704776287079, 0.3701581656932831, 0.3779294490814209, 0.39748460054397583, 0.3310501277446747, 0.3544250428676605, 0.38002175092697144, 0.41307657957077026, 0.379832923412323, ...]
+    >
+  },
+  "decoder.blocks.11.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139995>
+      [395485748, 2936984787]
+    >
+  },
+  "decoder.blocks.4.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140032>
+      [-0.06427578628063202, -0.29860806465148926, -0.11274097114801407, -0.1695093810558319, -0.029283864423632622, 0.015383693389594555, -0.059798579663038254, -0.21982493996620178, -0.11109853535890579, -0.025041809305548668, -0.17913004755973816, -0.04023921862244606, -0.15255160629749298, -0.14760905504226685, -0.05613582208752632, -0.08194784075021744, -0.08518823236227036, -0.10574408620595932, -0.09536109864711761, 0.04650188237428665, -0.24487002193927765, -0.10550493001937866, -0.07493823766708374, 0.3118955194950104, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140033>
+      [
+        [-4.077995545230806e-4, -0.1200379952788353, -0.012310190126299858, -0.24376054108142853, 0.1328510195016861, 0.13179974257946014, 0.02635245770215988, 0.057356610894203186, -0.06828179955482483, -0.01686907559633255, 0.049044106155633926, -0.3784016966819763, -0.03531080484390259, 0.43567171692848206, 0.02976839430630207, -0.06014109030365944, 0.18706151843070984, -0.050236742943525314, 0.11668948084115982, 0.05957753583788872, -0.14054043591022491, -0.013522407039999962, -0.06838822364807129, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.0.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139938>
+      [0.1502915918827057, -0.15426146984100342, -0.1466306895017624, -0.09912773221731186, 0.03380264714360237, -0.03444754704833031, -0.0706353709101677, -0.0936073362827301, 0.08110949397087097, 0.031160973012447357, -0.19926859438419342, -0.037245020270347595, 0.0030495061073452234, 0.04989158734679222, -0.0535597987473011, 0.0374077744781971, -0.19088934361934662, -0.08153925091028214, 0.0491158701479435, 0.14187365770339966, -0.11211564391851425, -0.09672139585018158, 0.05310625955462456, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139939>
+      [
+        [0.3127181828022003, -0.18741346895694733, 0.0980248749256134, -0.030339280143380165, -0.021640362218022346, -0.021060511469841003, -0.17938977479934692, -0.3298454284667969, 0.29462477564811707, 0.016695095226168633, -0.17451533675193787, -0.01856379583477974, 0.015662474557757378, 0.019278528168797493, 0.007864857092499733, 0.19694651663303375, -0.10614901781082153, -0.013053175993263721, 0.014888686127960682, 0.39647337794303894, -0.022225921973586082, 0.03043077513575554, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140042>
+      [-0.030168335884809494, 0.10533975064754486, 0.15787462890148163, 0.024759536609053612, -0.006538494024425745, 0.060618676245212555, 0.08839995414018631, -0.13495968282222748, -0.020193777978420258, 0.12939752638339996, -0.08156191557645798, 0.34852737188339233, -0.25281667709350586, 0.0726567953824997, -0.00879716593772173, 0.46894973516464233, -0.20609457790851593, 0.09965331107378006, 0.16798031330108643, 0.21133244037628174, 0.16016334295272827, 0.023227756842970848, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140043>
+      [
+        [0.05423329025506973, 0.10368772596120834, -0.12026900798082352, 0.2241293340921402, 0.07213354855775833, -0.10475268959999084, -0.098123699426651, -0.03631935641169548, 0.3400250971317291, 0.11668488383293152, 0.3846721351146698, -0.04552015662193298, 0.03707210719585419, 0.060659412294626236, -0.13420982658863068, -0.06594616919755936, 0.17946170270442963, -0.10135768353939056, -8.781739161349833e-4, 0.03128969296813011, 0.10800420492887497, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.8.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140104>
+      [0.026478445157408714, 0.03058476373553276, 0.03277738764882088, 0.027175817638635635, -0.03420574590563774, -0.04291548207402229, -0.02005288004875183, 0.06033172458410263, 0.042357590049505234, 0.015196949243545532, -0.006372882053256035, 0.014285472221672535, 0.02985285595059395, 0.006489758379757404, -0.03699921444058418, 0.02677823044359684, -0.01978689804673195, 0.029895320534706116, 0.001117934938520193, -0.03488800302147865, 0.03796650841832161, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140105>
+      [0.256835401058197, 0.2554992139339447, 0.26428794860839844, 0.2509766221046448, 0.25293001532554626, 0.260743111371994, 0.3623034656047821, 0.2026355266571045, 0.2724631726741791, 0.23681232333183289, 0.26465314626693726, 0.2565948963165283, 0.2509452700614929, 0.26839280128479004, 0.28613126277923584, 0.25516241788864136, 0.26855340600013733, 0.2548842430114746, 0.25679123401641846, 0.25487300753593445, ...]
+    >
+  },
+  "decoder.blocks.6.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140078>
+      [0.008094793185591698, -0.012891687452793121, 0.012476509436964989, 0.021194303408265114, 0.04015762358903885, -0.02663881704211235, -0.023752382025122643, -0.001071950071491301, 0.03309759870171547, 0.010285280644893646, -0.006889031268656254, -0.1257532835006714, 9.324409766122699e-4, 0.01171852182596922, -0.043873947113752365, -0.008764470927417278, -0.07170451432466507, -0.012096060439944267, 0.011502828449010849, 0.008124460466206074, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140079>
+      [
+        [-0.018813427537679672, 0.19313490390777588, 0.05417853593826294, 0.023874085396528244, -0.1469319462776184, -0.03817090019583702, -0.08952698111534119, 0.053204476833343506, 0.03557916358113289, -0.07985074818134308, -0.001789747504517436, -0.14399871230125427, 0.18803372979164124, 0.01738598197698593, 0.038275156170129776, 0.03143403306603432, -0.04185841605067253, 0.07224993407726288, 0.2724269926548004, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140017>
+      [-0.0232847947627306, 0.10563581436872482, -0.0531383752822876, -0.09454120695590973, -0.015325434505939484, -0.08506536483764648, -0.07138027250766754, 0.05388682335615158, 0.14111925661563873, 0.1348050981760025, -0.07036365568637848, -0.0036540981382131577, 0.041501376777887344, 0.07138317078351974, -0.1433209776878357, 0.033328648656606674, -0.025909310206770897, -0.15808121860027313, 0.058489684015512466, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140018>
+      [
+        [0.07660453766584396, 0.005029582418501377, -0.08185179531574249, -0.04126457870006561, 0.06943788379430771, -0.04354039579629898, 0.13279001414775848, 0.057913508266210556, -0.04257570207118988, -0.0920814573764801, -0.2037155032157898, -0.0021956718992441893, 0.06303318589925766, 0.0779477059841156, -0.028110455721616745, -0.22464191913604736, 0.08300850540399551, -0.037264134734869, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_9" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140158>
+      [395485748, 2932942603]
+    >
+  },
+  "lora_28" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140204>
+      [
+        [0.02529127337038517, -0.03775467351078987, 0.02355055697262287, 0.008473657071590424, 0.027879338711500168, -0.01458617951720953, -0.025119487196207047, -0.019852684810757637, -0.06393525749444962, 0.0026026698760688305, -0.032337289303541183, 0.04712846502661705, 0.010195850394666195, -0.019780395552515984, -0.05062568187713623, 0.0026145244482904673, -0.006398558616638184, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140205>
+      [
+        [0.01912272907793522, 0.0029708417132496834, 0.015731297433376312, -0.011621685698628426, 0.0034341556020081043, -0.01775209605693817, 4.673252406064421e-4, 0.011051534675061703],
+        [0.008250847458839417, -0.021444395184516907, 0.03480195999145508, -0.03744162246584892, 0.01940217800438404, -0.009852716699242592, 0.01196060050278902, -5.357817863114178e-4],
+        ...
+      ]
+    >
+  },
+  "dropout_25" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140146>
+      [395485748, 2934957765]
+    >
+  },
+  "decoder.blocks.8.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140110>
+      [-0.016666432842612267, -0.3908640146255493, -0.14189036190509796, -0.09550853818655014, 0.028818266466259956, -0.03564365208148956, 0.39664602279663086, -0.1003335490822792, -0.12153777480125427, 0.25413286685943604, -0.25467512011528015, 0.2728674113750458, -0.14818769693374634, 0.03464064374566078, -0.01881992444396019, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140111>
+      [
+        [0.04895172640681267, -0.13535946607589722, 0.08867701888084412, 0.03470441326498985, 0.16805638372898102, -0.04044034704566002, 0.02029840461909771, 0.12461696565151215, 0.038629818707704544, 0.0026324870996177197, 0.1111854836344719, -0.10957732796669006, 0.008841103874146938, 0.22030411660671234, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.1.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139961>
+      [395485748, 2932462148]
+    >
+  },
+  "lora_13" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140172>
+      [
+        [-0.022518975660204887, -0.012025125324726105, -0.009771136566996574, -0.049784038215875626, -0.051847994327545166, 0.002034182893112302, -0.020892400294542313, -0.029932964593172073, -0.012428813613951206, 0.004220162518322468, 0.031228478997945786, 0.001756227225996554, -0.018279384821653366, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140173>
+      [
+        [-0.008557657711207867, -0.010395943187177181, -0.01709362491965294, -0.00787715520709753, 0.007373257074505091, 0.012361062690615654, 0.003754636272788048, -0.010266996920108795],
+        [0.002633602125570178, 0.010475391522049904, 0.015055648051202297, 0.018223337829113007, ...],
+        ...
+      ]
+    >
+  },
+  "lora_20" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140188>
+      [
+        [-0.02351287752389908, 0.050655823200941086, 0.003467846428975463, 0.04746844992041588, 0.07579905539751053, -0.02761854976415634, -0.09214571118354797, -0.007716599386185408, 0.12209594994783401, 0.0238344669342041, 0.04444081336259842, -0.0037902826443314552, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140189>
+      [
+        [-0.03694148361682892, 0.04513741284608841, -0.042250484228134155, -0.03643859922885895, 0.034039173275232315, -0.04095478355884552, 0.04709019139409065, 0.032298218458890915],
+        [-0.016473889350891113, 0.005106864031404257, -0.029826946556568146, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140117>
+      [-0.15674668550491333, -0.05856061354279518, -0.1862010508775711, -0.05574220418930054, 0.05308351293206215, -0.23877263069152832, -0.1725977510213852, -0.16667550802230835, -0.1204790323972702, 0.10092921555042267, -0.1463088095188141, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140118>
+      [
+        [-0.1263384222984314, 0.10032892227172852, 0.04315217211842537, -0.34024444222450256, 0.03990277275443077, -0.1816384494304657, -0.08722347021102905, -0.09134645760059357, 0.08901876211166382, 0.2486005276441574, ...],
+        ...
+      ]
+    >
+  },
+  "lora_7" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140228>
+      [
+        [0.0026136627420783043, -0.036189157515764236, -0.01654244400560856, -0.02561192400753498, 0.007456319406628609, -0.025489021092653275, -0.006244403310120106, 0.011064006015658379, -0.018818512558937073, 0.017160138115286827, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140229>
+      [
+        [0.00858613196760416, 0.0027152998372912407, 0.008342951536178589, 0.003588323248550296, 0.002619700040668249, 0.00391051871702075, 0.003916739020496607, 0.011056788265705109],
+        [0.012913352809846401, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_6" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140156>
+      [395485748, 2932642010]
+    >
+  },
+  "decoder.blocks.11.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139991>
+      [-0.22222381830215454, 0.054906319826841354, 0.03307081758975983, 0.1580498218536377, 0.0302886962890625, -0.2349749058485031, -0.3064831495285034, -0.11609630286693573, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139992>
+      [
+        [-0.2175447642803192, 0.060769811272621155, -0.06370636075735092, -0.010534803383052349, 0.03727848827838898, 0.038609497249126434, 0.0018609011312946677, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.1.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139959>
+      [0.023383773863315582, 0.019925691187381744, -0.010859258472919464, 0.6510787010192871, -0.007127456832677126, 3.0829233583062887e-4, -0.0018755021737888455, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139960>
+      [
+        [-0.009291327558457851, 0.030902646481990814, 0.077150858938694, 0.03817647323012352, -0.11329539120197296, -0.028751656413078308, ...],
+        ...
+      ]
+    >
+  },
+  "lora_19" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140184>
+      [
+        [0.01772373914718628, 0.02108069881796837, 0.03526961803436279, -0.03752535954117775, -0.009055000729858875, 0.016100233420729637, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140185>
+      [
+        [0.01848756894469261, 0.015498108230531216, 0.023563653230667114, 0.03670588135719299, 0.01929955743253231, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140012>
+      [395485748, 2932922673]
+    >
+  },
+  "lora_5" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[8][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140224>
+      [
+        [-0.04070486128330231, 0.011464862152934074, -0.03390953317284584, 0.004002570174634457, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][8]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140225>
+      [
+        [0.003106574760749936, 0.004669837187975645, -0.0014047666918486357, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.11.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139993>
+      [0.05557013303041458, -0.023522645235061646, 0.020958656445145607, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139994>
+      [
+        [0.09672704339027405, 0.02168218418955803, ...],
+        ...
+      ]
+    >
+  },
+  "embedder.token_embedding" => %{
+    "kernel" => #Nx.Tensor<
+      f32[50257][768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140160>
+      [
+        [-0.11010301113128662, -0.03926672413945198, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140036>
+      [0.03581799939274788, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.140037>
+      [...]
+    >
+  },
+  "decoder.blocks.10.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.938836670.1246101516.139972>
+      [...]
+    >,
+    ...
+  },
+  "decoder.blocks.0.output_norm" => %{...},
+  ...
+}
+```
+
 ## Text Generation
 
 ```elixir
-text = "  "
+text = "Title:  "
 
 inputs = Bumblebee.apply_tokenizer(tokenizer, text)
 
@@ -241,7 +1049,7 @@ lora_model_info = %{model: lora_model, params: lora_params, spec: spec}
 lora_generation_config =
   Bumblebee.configure(generation_config,
     max_new_tokens: 256,
-    strategy: %{type: :multinomial_sampling, top_p: 0.6}
+    strategy: %{type: :multinomial_sampling, top_p: 0.8}
   )
 
 serving = Bumblebee.Text.generation(lora_model_info, tokenizer, lora_generation_config)
@@ -251,40 +1059,27 @@ text
 |> IO.puts()
 ```
 
-```elixir
-file_input = Kino.Input.file("Your LoRA params")
+<!-- livebook:{"output":true} -->
+
+```
+Title:   title: ``Exhaustive Headless Trainer template``
+It took the Travis-style templates file and re-exported them, so it will run fine with Travis 3.
+Now to run migrations from path to location, I recommend you to make an inside-view of your routes file, ie. the contents of <> /hello and <> /hello.html .
+Include a schema.json file, if you are familiar with those, then it is not recommended to include it. You can just use the :update feature in the rest of the scripts.
+One other thing I want to mention is that if you have a dummy template, you can now actually include your own from it, by changing all your routes files in the docs folder.
+That I strongly recommend.
+And this would be a great place to share your production code, where you are just starting to see the benefits of this process, which is very useful for debugging your production code.
+
+[1 like]
+
+pettersrouler:
+
+This seems to be a great way to share the live code from the database, where you are just starting to see the benefits of this process, which is very useful for debugging your production code. If you
 ```
 
-```elixir
-defmodule Params do
-  def serialize_params(lora_params, og_keys, serialize_opts \\ []) do
-    lora_params = Map.drop(lora_params, og_keys)
-    Nx.serialize(lora_params, serialize_opts)
-  end
+<!-- livebook:{"output":true} -->
 
-  def new(lora_params, og_keys, filename \\ "params.lorax", label \\ "Lora Params") do
-    iodata = Params.serialize_params(lora_params, og_keys)
-    binary = IO.iodata_to_binary(iodata)
-
-    Kino.Download.new(
-      fn -> binary end,
-      filename: filename,
-      label: label
-    )
-  end
-end
-
-og_keys = params |> Map.keys()
-# Params.new(lora_params, og_keys)
-
-iodata = Params.serialize_params(lora_params, og_keys)
-binary = IO.iodata_to_binary(iodata)
-
-File.write("/public-apps/params.lorax", binary)
-
-# Kino.Download.new(
-#   fn -> binary end,
-#   filename: "params.lorax",
-#   label: "Lora Params"
-# )
 ```
+:ok
+```
+
