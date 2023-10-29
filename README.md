@@ -15,7 +15,7 @@ LoRA introduces a more efficient method for adaptation by freezing the original 
 lora_model =
   model
   |> Axon.freeze()
-  |> Lorax.foo(%Lorax.Config{r: 2, alpha: 4, lora_dropout: 0.05})
+  |> Lorax.inject(%Lorax.Config{r: 2, alpha: 4, lora_dropout: 0.05})
 
 # train model
 ```
