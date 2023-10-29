@@ -116,14 +116,12 @@ defmodule Lorax do
       %Axon.Node{id: id, name: name_fn, op: :dense}, acc ->
         shortname =
           name_fn.(:dense, nil)
-          |> IO.inspect(label: "full name")
           |> String.split(".")
           |> List.last()
 
         if (target_key and shortname == "key") or
              (target_query and shortname == "query") or
              (target_value and shortname == "value") do
-          IO.inspect(shortname, label: "Accepting node")
           [id | acc]
         else
           acc
