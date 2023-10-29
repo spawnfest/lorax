@@ -8,9 +8,6 @@ defmodule Lorax do
               target_query: true,
               target_key: false,
               target_value: true,
-              # target_project: false,
-              # target_mlp: false,
-              # target_head: false,
               target_node_fn: nil
   end
 
