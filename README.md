@@ -1,7 +1,12 @@
 # Lorax
 
 This package implements Low-Rank Adaptation (LoRA), a popular method for fine-tuning large language models.
-LoRA introduces a more efficient method for adaptation by freezing the original model weights and injecting trainable rank decomposition matrices. This results in a dramatic reduction in the number of parameters needing updates (by up to 10,000x for some configurations) and cuts down on the GPU memory needed, making it a much more affordable and practical solution for users who don’t have access to high-end GPU hardware.
+LoRA introduces a more efficient method for adaptation by freezing the original model weights and injecting trainable rank decomposition matrices. This results in a dramatic reduction in the number of parameters needing updates and cuts down on the GPU memory needed, making it a much more affordable and practical solution for users who don’t have access to high-end GPU hardware.
+
+## Key Benefits:
+- *Efficiency*: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
+- *Performance*: Despite the reduction in trainable parameters, LoRA exhibits comparable or even superior performance to full fine-tuning on various models (RoBERTa, DeBERTa, GPT-2, GPT-3) across different benchmarks.
+- *Storage Space*: LoRA parameters are impressively compact, taking up only a few megabytes. 
 
 ## How To Fine-tune an LLM
 
@@ -26,6 +31,25 @@ The default configs target only the query and value matrices.
 r is set to 1, alpha to 2.
 
 The original LoRA paper found that configuring query and value matrices was effective enough for fine-tuning. Furthermore, even an r value of 1 is enough to fine-tune a model, though in practice I found that it's necessary to use values of 2, 4, or 8.   
+
+## Recommended Settings
+
+These settings are for an A10 small w/ 24gb vRAM
+
+```
+Lora Config
+- r value of at least 2
+- alpha value is r*2
+- batch size = 4
+- sequence_length = 512
+
+Training
+- learning_rate of 3.0e-4
+
+Text Generation
+- multinomial sampling
+- p = 0.06 or 0.08 for more variety (or if you experience repetitive results)
+```
 
 ## Limitations
 
