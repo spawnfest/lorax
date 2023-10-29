@@ -6,9 +6,10 @@ LoRA introduces a more efficient method for adaptation by freezing the original 
 ![lora diagram](https://raw.githubusercontent.com/spawnfest/lorax/main/diagram.png)
 
 ## Key Benefits:
-- *Efficiency*: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
-- *Performance*: Despite the reduction in trainable parameters, LoRA exhibits comparable or even superior performance to full fine-tuning on various models (RoBERTa, DeBERTa, GPT-2, GPT-3) across different benchmarks.
-- *Storage Space*: LoRA parameters are impressively compact, taking up only a few megabytes. 
+
+- _Efficiency_: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
+- _Performance_: Despite the reduction in trainable parameters, LoRA exhibits comparable or even superior performance to full fine-tuning on various models (RoBERTa, DeBERTa, GPT-2, GPT-3) across different benchmarks.
+- _Storage Space_: LoRA parameters are impressively compact, taking up only a few megabytes.
 
 ## How To Fine-tune an LLM
 
@@ -22,7 +23,14 @@ LoRA introduces a more efficient method for adaptation by freezing the original 
 lora_model =
   model
   |> Axon.freeze()
-  |> Lorax.inject(%Lorax.Config{r: 2, alpha: 4, lora_dropout: 0.05})
+  |> Lorax.inject(%Lorax.Config{
+      r: 2,
+      alpha: 4,
+      dropout: 0.05,
+      target_query: true,
+      target_key: true,
+      target_value: true
+  })
 
 # train model
 ```
@@ -32,7 +40,7 @@ lora_model =
 The default configs target only the query and value matrices.
 r is set to 1, alpha to 2.
 
-The original LoRA paper found that configuring query and value matrices was effective enough for fine-tuning. Furthermore, even an r value of 1 is enough to fine-tune a model, though in practice I found that it's necessary to use values of 2, 4, or 8.   
+The original LoRA paper found that configuring query and value matrices was effective enough for fine-tuning. Furthermore, even an r value of 1 is enough to fine-tune a model. Though in practice I found that it's necessary to use r values of 2, 4, or 8.
 
 ## Recommended Settings
 
@@ -51,6 +59,36 @@ Training
 Text Generation
 - multinomial sampling
 - p = 0.06 or 0.08 for more variety (or if you experience repetitive results)
+```
+
+## Manually targeting specific nodes
+
+The authors behind the LoRA paper also noted that targeting nodes outside of QKV like the self attention output can be beneficial to approach the results of full-finetuning.
+
+Here's how you could target only the output node.
+
+```
+lora_model =
+  model
+  |> Axon.freeze()
+  |> Lorax.inject(%Lorax.Config{
+    r: 2,
+    alpha: 4,
+    dropout: 0.1,
+    target_node_fn: fn %Axon.Node{name: name_fn} ->
+      # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
+      # have to invoke the function to see what layer the node represents
+      # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
+      name = name_fn.(nil, nil)
+      shortname = String.split(name, ".") |> List.last()
+
+      if shortname == "output" do
+        true
+      else
+        false
+      end
+    end
+  })
 ```
 
 ## Limitations
@@ -75,4 +113,3 @@ end
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at <https://hexdocs.pm/lorax>.
-
