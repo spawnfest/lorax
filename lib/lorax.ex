@@ -19,7 +19,7 @@ defmodule Lorax do
   """
 
   # update nodes so that target is moved to dummy position, lora replaces target's position
-  def foo(%Axon{} = axon, %Config{} = config) do
+  def inject(%Axon{} = axon, %Config{} = config) do
     target_nodes = get_target_nodes(axon, config)
 
     Enum.reduce(target_nodes, axon, fn target_id, %Axon{nodes: acc_nodes} = acc ->

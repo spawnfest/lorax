@@ -5,9 +5,9 @@ LoRA introduces a more efficient method for adaptation by freezing the original 
 
 ## How To Fine-tune an LLM
 
-Step 1. Import your model
-Step 2. Freeze your model
-Step 3. Inject trainable LoRA parameters
+1. Import your model
+2. Freeze your model
+3. Inject trainable LoRA parameters
 
 ```
 {:ok, model} = Bumblebee.load_model({:hf, "gpt2"})
