@@ -1,0 +1,83 @@
+# Loading LoRA Params
+
+```elixir
+Mix.install([
+  {:bumblebee, "~> 0.4.2"},
+  {:axon, "~> 0.6.0"},
+  {:nx, "~> 0.6.1"},
+  {:exla, "~> 0.6.1"},
+  {:explorer, "~> 0.7.0"},
+  # {:lorax, git: "https://github.com/spawnfest/lorax.git"},
+  {:lorax, path: "/Users/ted/CS/elixir/lorax"},
+  {:req, "~> 0.4.0"},
+  {:kino, "~> 0.11.0"}
+])
+
+Nx.default_backend(EXLA.Backend)
+```
+
+## Load model
+
+```elixir
+{:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
+{:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
+{:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
+{:ok, generation_config} = Bumblebee.load_generation_config({:hf, "gpt2"})
+
+%{model: model, params: gpt2_params} = model
+
+:ok
+```
+
+## Upload Params
+
+```elixir
+input = Kino.Input.file("Lorax Params")
+```
+
+## Load Param File
+
+```elixir
+lora_params = Lorax.Params.kino_load_file!(input)
+merged_params = Lorax.Params.merge_params(lora_params, gpt2_params)
+```
+
+## Define LoRA Model
+
+Axon keeps the model definition as code. The associated parameters are always separate.
+
+```elixir
+lora_model =
+  model
+  |> Axon.freeze()
+  |> Lorax.inject(%Lorax.Config{
+    r: 2,
+    alpha: 4,
+    dropout: 0.05
+  })
+```
+
+## Inference
+
+```elixir
+lora_model_info = %{model: lora_model, params: lora_params, spec: spec}
+
+lora_generation_config =
+  Bumblebee.configure(generation_config,
+    max_new_tokens: 512,
+    strategy: %{type: :multinomial_sampling, top_p: 0.8}
+  )
+
+serving =
+  Bumblebee.Text.generation(lora_model_info, tokenizer, lora_generation_config,
+    compile: [batch_size: 1, sequence_length: 512],
+    stream: true,
+    defn_options: [compiler: EXLA, lazy_transfers: :always]
+  )
+
+Kino.start_child({Nx.Serving, name: Llama, serving: serving})
+```
+
+```elixir
+Nx.Serving.batched_run(Llama, "Title: ") |> Enum.each(&IO.write/1)
+```
