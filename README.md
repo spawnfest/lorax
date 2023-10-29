@@ -25,11 +25,11 @@ lora_model =
 The default configs target only the query and value matrices.
 r is set to 1, alpha to 2.
 
-The original LoRA paper found that configuring query and value matrices was effective enough for fine-tuning. Even a r value of 1 is enough to fine-tune a model, though in practice I found that it's necessary to use values of 2, 4, or 8.   
+The original LoRA paper found that configuring query and value matrices was effective enough for fine-tuning. Furthermore, even an r value of 1 is enough to fine-tune a model, though in practice I found that it's necessary to use values of 2, 4, or 8.   
 
 ## Limitations
 
-While the LoRA algorithm significantly reduces the GPU requirements for fine-tuning a model, using LoRA on LLMs that are bigger than GPT2 still requires a GPU with high vRAM. Most of the examples here were fine-tuned on an A10G on Huggingface Spaces. Attempting to fine-tune Mistral 7B on Huggingface's A10x4 (the largest available w/ 96 vRAM) will cause cuda OOM errors. To fine-tune on consumer GPUs, quantization work needs to be done to implement the QLoRA algorithm.
+While the LoRA algorithm significantly reduces the GPU requirements for fine-tuning a model, using LoRA on LLMs that are bigger than GPT2 still requires a GPU with high vRAM. Most of the examples here were fine-tuned on an A10G on Huggingface Spaces. Attempting to fine-tune Mistral 7B on Huggingface's A10x4 (the largest available w/ 96 vRAM) will cause cuda OOM errors. To fine-tune on consumer GPUs, [quantization work](https://github.com/elixir-nx/axon/issues/100) needs to be done to implement the QLoRA algorithm.
 
 ## Installation
 
