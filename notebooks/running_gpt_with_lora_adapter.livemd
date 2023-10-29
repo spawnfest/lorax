@@ -1,4 +1,4 @@
-# Running GPT2 with LoRA parameters
+# Loading LoRA Params
 
 ```elixir
 Mix.install([
