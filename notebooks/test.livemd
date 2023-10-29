@@ -27,12 +27,64 @@ lora_dropout = 0.05
 :ok
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
 ## Load a model
 
 ```elixir
 {:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
 {:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
 {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+|=============================================================| 100% (548.11 MB)
+
+02:57:00.597 [info] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero. See more at https://github.com/torvalds/linux/blob/v6.0/Documentation/ABI/testing/sysfs-bus-pci#L344-L355
+
+02:57:00.597 [info] XLA service 0x7eff242f3bb0 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+
+02:57:00.597 [info]   StreamExecutor device (0): NVIDIA A10G, Compute Capability 8.6
+
+02:57:00.597 [info] Using BFC allocator.
+
+02:57:00.597 [info] XLA backend allocating 21452488704 bytes on device 0 for BFCAllocator.
+
+02:57:03.187 [info] Loaded cuDNN version 8900
+
+02:57:03.195 [info] Using nvlink for parallel linking
+|===============================================================| 100% (1.35 MB)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %Bumblebee.Text.Gpt2Tokenizer{
+   tokenizer: #Tokenizers.Tokenizer<[
+     vocab_size: 50257,
+     byte_fallback: false,
+     continuing_subword_prefix: "",
+     dropout: nil,
+     end_of_word_suffix: "",
+     fuse_unk: false,
+     model_type: "bpe",
+     unk_token: nil
+   ]>,
+   special_tokens: %{
+     pad: "<|endoftext|>",
+     bos: "<|endoftext|>",
+     eos: "<|endoftext|>",
+     unk: "<|endoftext|>"
+   },
+   additional_special_tokens: []
+ }}
 ```
 
 ## Prepare a dataset
@@ -43,6 +95,12 @@ text =
   Req.get!(
     "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
   ).body
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?\n\nAll:\nResolved. resolved.\n\nFirst Citizen:\nFirst, you know Caius Marcius is chief enemy to the people.\n\nAll:\nWe know't, we know't.\n\nFirst Citizen:\nLet us kill him, and we'll have corn at our own price.\nIs't a verdict?\n\nAll:\nNo more talking on't; let it be done: away, away!\n\nSecond Citizen:\nOne word, good citizens.\n\nFirst Citizen:\nWe are accounted poor citizens, the patricians good.\nWhat authority surfeits on would relieve us: if they\nwould yield us but the superfluity, while it were\nwholesome, we might guess they relieved us humanely;\nbut they think we are too dear: the leanness that\nafflicts us, the object of our misery, is as an\ninventory to particularise their abundance; our\nsufferance is a gain to them Let us revenge this with\nour pikes, ere we become rakes: for the gods know I\nspeak this in hunger for bread, not in thirst for revenge.\n\nSecond Citizen:\nWould you proceed especially against Caius Marcius?\n\nAll:\nAgainst him first: he's a very dog to the commonalty.\n\nSecond Citizen:\nConsider you what services he has done for his country?\n\nFirst Citizen:\nVery well; and could be content to give him good\nreport fort, but that he pays himself with being proud.\n\nSecond Citizen:\nNay, but speak not maliciously.\n\nFirst Citizen:\nI say unto you, what he hath done famously, he did\nit to that end: though soft-conscienced men can be\ncontent to say it was for his country he did it to\nplease his mother and to be partly proud; which he\nis, even till the altitude of his virtue.\n\nSecond Citizen:\nWhat he cannot help in his nature, you account a\nvice in him. You must in no way say he is covetous.\n\nFirst Citizen:\nIf I must not, I need not be barren of accusations;\nhe hath faults, with surplus, to tire in repetition.\nWhat shouts are these? The other side o' the city\nis risen: why stay we prating here? to the Capitol!\n\nAll:\nCome, come.\n\nFirst Citizen:\nSoft! who comes here?\n\nSecond Citizen:\nWorthy Menenius Agrippa; one that hath always loved\nthe people.\n\nFirst Citizen:\nHe's one honest enough: would all the rest were so!\n\nMENENIUS:\nWhat work's, my countrymen, in hand? where go you\nWith bats and clubs? The matter? speak, I pray you.\n\nFirst Citizen:\nOur business is not unknown to the senate; they have\nhad inkling this fortnight what we intend to do,\nwhich now we'll show 'em in deeds. They say poor\nsuitors have strong breaths: they shall know we\nhave strong arms too.\n\nMENENIUS:\nWhy, masters, my good friends, mine honest neighbours,\nWill you undo yourselves?\n\nFirst Citizen:\nWe cannot, sir, we are undone already.\n\nMENENIUS:\nI tell you, friends, most charitable care\nHave the patricians of you. For your wants,\nYour suffering in this dearth, you may as well\nStrike at the heaven with your staves as lift them\nAgainst the Roman state, whose course will on\nThe way it takes, cracking ten thousand curbs\nOf more strong link asunder than can ever\nAppear in your impediment. For the dearth,\nThe gods, not the patricians, make it, and\nYour knees to them, not arms, must help. Alack,\nYou are transported by calamity\nThither where more attends you, and you slander\nThe helms o' the state, who care for you like fathers,\nWhen you curse them as enemies.\n\nFirst Citizen:\nCare for us! True, indeed! They ne'er cared for us\nyet: suffer us to famish, and their store-houses\ncrammed with grain; make edicts for usury, to\nsupport usurers; repeal daily any wholesome act\nestablished against the rich, and provide more\npiercing statutes daily, to chain up and restrain\nthe poor. If the wars eat us not up, they will; and\nthere's all the love they bear us.\n\nMENENIUS:\nEither you must\nConfess yourselves wondrous malicious,\nOr be accused of folly. I shall tell you\nA pretty tale: it may be you have heard it;\nBut, since it serves my purpose, I will venture\nTo stale 't a little more.\n\nFirst Citizen:\nWell, I'll hear it, sir: yet you must not think to\nfob off our disgrace with a tale: but, an 't please\nyou, deliver.\n\nMENENIUS:\nThere was a time when all " <> ...
 ```
 
 ```elixir
@@ -60,6 +118,34 @@ test_data =
   for {input_key, tokenized_values} <- tokenized_text, into: %{} do
     {input_key, Nx.slice_along_axis(tokenized_values, n_train, n_val, axis: -1)}
   end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "attention_mask" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<cuda:0, 0.858622466.846594061.155740>
+    [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
+    ]
+  >,
+  "input_ids" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<cuda:0, 0.858622466.846594061.155741>
+    [
+      [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
+    ]
+  >,
+  "token_type_ids" => #Nx.Tensor<
+    u32[1][33802]
+    EXLA.Backend<cuda:0, 0.858622466.846594061.155742>
+    [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
+    ]
+  >
+}
 ```
 
 ```elixir
@@ -117,6 +203,12 @@ defmodule DataStream do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, DataStream, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:get_batch_stream, 4}}
+```
+
 You can see what a single batch looks like by grabbing 1 from the stream:
 
 ```elixir
@@ -131,6 +223,23 @@ IO.puts("=====")
 Bumblebee.Tokenizer.decode(tokenizer, y) |> IO.inspect()
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+[" mean to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward",
+ ":\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\n",
+ " prophesy that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD III:\nBecause that, like a Jack, thou keep'st the stroke\nBetwixt thy begging and my meditation.\nI am not in the giving vein to-day.\n\nBUCKINGHAM:\nWhy, then resolve me whether you will or no.\n\nKING RICHARD III:\nTut, tut,\nThou troublest me; am not in the vein.\n\nBUCKINGHAM:\nIs it even so? rewards he my true service\nWith such deep contempt made I him king for this?\nO, let me think on Hastings, and be gone\nTo Brecknock, while my fearful head is on!\n\nTYRREL:\nThe tyrannous and bloody deed is done.\nThe most arch of piteous massacre\nThat ever yet this land was guilty of.\nDighton and Forrest, whom I did suborn\nTo do this ruthless piece of butchery,\nAlthough they were flesh'd villains, bloody dogs,\nMelting with tenderness and kind compassion\nWept like two children in their deaths' sad stories.\n'Lo, thus",
+ "'s yoke, but let thy dauntless mind\nStill ride in triumph over all mischance.\nBe plain, Queen Margaret, and tell thy grief;\nIt shall be eased, if France can yield relief.\n\nQUEEN MARGARET:\nThose gracious words revive my drooping thoughts\nAnd give my tongue-tied sorrows leave to speak.\nNow, therefore, be it known to noble Lewis,\nThat Henry, sole possessor of my love,\nIs of a king become a banish'd man,\nAnd forced to live in Scotland a forlorn;\nWhile proud ambitious Edward Duke of York\nUsurps the regal title and the seat\nOf England's true-anointed lawful king.\nThis is the cause that I, poor Margaret,\nWith this my son, Prince Edward, Henry's heir,\nAm come to crave thy just and lawful aid;\nAnd if thou fail us, all our hope is done:\nScotland hath will to help, but cannot help;\nOur people and our peers are both misled,\nOur treasures seized, our soldiers put to flight,\nAnd, as thou seest, ourselves in heavy plight.\n\nKING LEWIS XI:\nRenowned queen, with patience calm the storm,\nWhile we bethink a means to break it off.\n\nQUEEN MARGARET:\nThe more we stay, the stronger grows our foe.\n\nKING LEWIS XI:\nThe more I stay, the more I'll succor thee.\n\nQUEEN MARGARET:\nO, but impatience waiteth on true sorrow.\nAnd see where comes the breeder of my sorrow!\n\nKING LEWIS XI:\nWhat's he approacheth boldly to our presence?\n\nQUEEN MARGARET:\nOur Earl of Warwick, Edward's greatest friend.\n\nKING LEWIS XI:\nWelcome, brave Warwick! What brings thee to France?\n\nQUEEN MARGARET:\nAy, now begins a second storm to rise;\nFor this is he that moves both wind and tide.\n\nWARWICK:\nFrom worthy Edward, King of Albion,\nMy lord and sovereign, and thy vowed friend,\nI come, in kindness and unfeigned love,\nFirst, to do greetings to thy royal person;\nAnd then to crave a league of amity;"]
+=====
+" to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward sufficient\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\nWheny that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD " <> ...
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+" to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward sufficient\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\nWheny that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD " <> ...
+```
+
 ## Train the model
 
 Now we can go about training the model! First, we need to extract the Axon model and parameters from the Bumblebee model map:
@@ -141,11 +250,33 @@ Now we can go about training the model! First, we need to extract the Axon model
 model
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
+  outputs: "container_37"
+  nodes: 859
+>
+```
+
 The Axon model actually outputs a map with `:logits`, `:hidden_states`, and `:attentions`. You can see this by using `Axon.get_output_shape/2` with an input. This method symbolically executes the graph and gets the resulting shapes:
 
 ```elixir
 [{input, _}] = Enum.take(train_batch_stream, 1)
 Axon.get_output_shape(model, input)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  cache: #Axon.None<...>,
+  logits: {4, 512, 50257},
+  cross_attentions: #Axon.None<...>,
+  hidden_states: #Axon.None<...>,
+  attentions: #Axon.None<...>
+}
 ```
 
 For training LoRA adapters, we'll freeze the original layers, and append adapters to our target nodes
@@ -170,6 +301,16 @@ lora_model =
       end
     end
   )
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
+  outputs: "container_37"
+  nodes: 895
+>
 ```
 
 Now we can declare our training loop. You can construct Axon training loops using the `Axon.Loop.trainer/3` factory method with a model, loss function, and optimizer. We'll also adjust the log-settings to more frequently log metrics to standard out:
@@ -208,6 +349,726 @@ lora_params =
   |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 1000, compiler: EXLA)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+
+02:59:12.146 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
+Epoch: 0, Batch: 950, loss: 3.7527766
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "decoder.blocks.7.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159613>
+      [-0.0015067235799506307, 0.011825020425021648, -0.015962932258844376, -0.009843949228525162, 0.017166582867503166, -0.0023309593088924885, 0.01716618798673153, -0.01785222440958023, 0.02480374090373516, -0.04544716328382492, -0.04233347252011299, 0.19252289831638336, 0.023084215819835663, 0.010606026276946068, 0.020862935110926628, -0.014164811000227928, 0.04407064616680145, -0.001367615768685937, 0.03417485952377319, 0.0010759946890175343, 0.020503727719187737, -0.018043607473373413, -0.00980320293456316, 0.028919916599988937, -0.003041631542146206, -0.041081931442022324, -0.030980169773101807, 0.0037019671872258186, 0.009434754960238934, -0.004209163598716259, 0.0016339614521712065, 0.02209661342203617, -0.014821838587522507, -0.02030492015182972, 0.03273279219865799, -0.04265918210148811, 0.00601721927523613, 0.00928163155913353, -0.028216741979122162, -0.007809154689311981, -0.03414953500032425, -0.011486138217151165, -0.006398558616638184, -0.014157279394567013, 0.010680632665753365, -0.06726251542568207, -0.0386282317340374, 0.007625897414982319, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159614>
+      [
+        [0.021402638405561447, 0.050967343151569366, 0.04545518010854721, -0.0109089445322752, -0.04193441942334175, -0.023326827213168144, 0.09840112924575806, 0.10209610313177109, 0.05283593386411667, 0.034540046006441116, 0.05829596519470215, -0.1514427661895752, 0.0445757620036602, -0.014143920503556728, 0.009306855499744415, 0.07754021883010864, 0.11058628559112549, -0.11392591893672943, 0.05147108808159828, 0.014121315442025661, 0.0954991802573204, 0.032277483493089676, 0.09881661087274551, 0.13257817924022675, -0.02898217923939228, -0.08612077683210373, -0.10402683913707733, 0.032209958881139755, 0.07464122027158737, -0.04770876094698906, -0.12873615324497223, 0.04697330668568611, -0.04240507632493973, -0.058180730789899826, 9.088746155612171e-4, 0.05110365152359009, 0.20511674880981445, -0.020681431517004967, -0.01085528265684843, -0.1648135483264923, 0.038136307150125504, -0.01178289670497179, -0.005067809019237757, -0.11831668764352798, 0.08509404212236404, -0.008230645209550858, 0.08802532404661179, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.0.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159450>
+      [0.045023269951343536, 0.03226305544376373, -0.08854541927576065, -0.008162474259734154, 0.11771649867296219, -0.2388763129711151, -0.0758744403719902, 0.029564158990979195, 0.04648246616125107, -0.0027773359324783087, -0.0038145091384649277, 0.020842736586928368, 0.009267736226320267, 0.03588847070932388, -0.1409134566783905, 0.06138546019792557, -0.06896162778139114, -0.012951075099408627, 0.06189567223191261, -0.017779534682631493, 0.021359939128160477, -0.05501718819141388, 0.02197490818798542, 0.0011829776922240853, 0.04943571239709854, 0.04192988574504852, 0.07189816981554031, -0.020239252597093582, 0.06509828567504883, 0.10963835567235947, 0.04001740366220474, 0.03582198917865753, 0.06442175805568695, -0.031552474945783615, 0.020920773968100548, -0.05902986228466034, 0.019308188930153847, -0.03758474066853523, 0.04784710705280304, 0.1294996589422226, 0.0656597912311554, 0.16015131771564484, 0.0036071811337023973, 0.013143805786967278, 0.08715710043907166, -0.05141830816864967, 0.10630246251821518, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159451>
+      [
+        [-0.10660640895366669, 0.1527840495109558, 0.03310481086373329, 0.023700203746557236, 0.02993733063340187, -0.07244370877742767, -0.55028235912323, 0.10002829134464264, 0.10845957696437836, -0.06486132740974426, -0.050516318529844284, -0.04687585309147835, -0.019445782527327538, -0.031208522617816925, -0.1474572867155075, 0.00985053088515997, 0.14931969344615936, 0.07806558161973953, -9.190309210680425e-4, 0.23059925436973572, -0.021436616778373718, 0.04766186699271202, -0.07279295474290848, 0.06045343354344368, 0.013344594277441502, 0.16240741312503815, 0.11852358281612396, -0.02879641018807888, 0.05925842374563217, 0.12395480275154114, -0.09108705073595047, -0.01235614251345396, 0.03735384717583656, -0.022464079782366753, -0.045593757182359695, -0.27166813611984253, -0.04527653008699417, 0.03668154403567314, 0.08654572069644928, 0.023413583636283875, -0.08427132666110992, -0.03452301397919655, 0.03188594430685043, -0.043258294463157654, -0.05696522071957588, 0.018179383128881454, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159524>
+      [0.020700350403785706, -0.26381751894950867, -0.1094379648566246, 0.2875203490257263, 0.2774174213409424, 0.04697851091623306, 0.062320489436388016, 0.025348320603370667, -0.1447840929031372, 0.23507045209407806, -0.22111418843269348, -0.04685695096850395, 0.04695908725261688, -0.08256081491708755, 0.049968790262937546, 0.0957123190164566, 0.008569050580263138, 0.36251145601272583, 0.026079699397087097, 0.14226137101650238, 0.30309706926345825, -0.051855895668268204, -0.041972529143095016, 0.045346442610025406, 0.09475845843553543, 0.03463638201355934, 0.11646518856287003, -0.13341329991817474, 0.10428164899349213, -0.16626955568790436, 0.008327489718794823, 0.11973997205495834, 0.1891246736049652, 0.27689802646636963, 0.07897856086492538, 0.2317073494195938, 3.121290064882487e-4, 0.014473449438810349, -0.22102972865104675, -0.024565676227211952, 0.0030907581094652414, -0.10433603823184967, 0.2853952944278717, 0.022545315325260162, 0.10485214740037918, 0.2518227994441986, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159525>
+      [
+        [-0.013124971650540829, -0.06660282611846924, -0.0697135180234909, -0.030710719525814056, 0.042854610830545425, 0.008408921770751476, -0.03381262347102165, 0.06493787467479706, -0.03271748125553131, 0.12311036139726639, 0.1337415724992752, 0.10496947169303894, 0.0691475197672844, 0.015230960212647915, -0.07322822511196136, -0.05089348554611206, 0.09375757724046707, -0.13991476595401764, -0.05577455088496208, 0.04202907159924507, -0.028392035514116287, -0.07780732214450836, -0.05117521435022354, -0.010147273540496826, -0.09198098629713058, -0.15541940927505493, -0.09189142286777496, 0.04543245583772659, 0.05888330563902855, 0.007717895321547985, -0.055146679282188416, -0.10239534080028534, 0.01507049985229969, -0.01887754164636135, -0.06463737785816193, -0.10168686509132385, -0.04603245481848717, -0.03781770542263985, 0.08949298411607742, -0.014968409202992916, 0.01719915308058262, 0.01886896975338459, 0.040570300072431564, 0.052193399518728256, -0.04610079526901245, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.6.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159588>
+      [0.045025456696748734, 0.009542928077280521, 0.016986900940537453, 0.013239625841379166, 0.022165829315781593, -0.02997750975191593, -0.05318791791796684, 0.030291369184851646, 0.021082192659378052, 0.014847509562969208, -1.6169920513675606e-7, 0.0210530087351799, 0.056806933134794235, 0.009754392318427563, -0.06860926002264023, 0.03423593193292618, -0.02938588336110115, 0.015446092002093792, 0.010956122539937496, -0.02942276932299137, 0.03855720907449722, 0.01702086068689823, -0.005053986329585314, 0.017972847446799278, 0.014045481570065022, 0.021662695333361626, 0.02321026474237442, 0.04095667600631714, 0.0021895733661949635, 0.016517585143446922, -0.004257701337337494, -0.013539420440793037, -0.01618128828704357, -0.007974829524755478, -0.004954650532454252, -0.03999199718236923, -0.02632948011159897, -0.01814391277730465, 0.004013486206531525, 0.007407412398606539, 0.001718125189654529, 0.019525639712810516, 0.0014584340387955308, 0.022858886048197746, 5.235132412053645e-4, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159589>
+      [0.25878557562828064, 0.2482416182756424, 0.27244293689727783, 0.2566904127597809, 0.2704152762889862, 0.2627618908882141, 0.29589709639549255, 0.18097728490829468, 0.2705056071281433, 0.2587742209434509, 0.26464471220970154, 0.2627030909061432, 0.2763660252094269, 0.26602861285209656, 0.2792193293571472, 0.262694776058197, 0.2730119526386261, 0.2646535038948059, 0.24892735481262207, 0.24463066458702087, 0.2625494599342346, 0.2543585002422333, 0.2724483907222748, 0.23977135121822357, 0.2607770562171936, 0.25832539796829224, 0.2607426345348358, 0.2576335072517395, 0.2551948130130768, 0.2608013451099396, 0.2707134485244751, 0.2568177878856659, 0.2546869218349457, 0.24516521394252777, 0.2724584937095642, 0.27050986886024475, 0.22996947169303894, 0.2724611461162567, 0.2426939308643341, 0.24848425388336182, 0.2568362355232239, 0.2662496268749237, 0.2592116594314575, 0.2666124701499939, ...]
+    >
+  },
+  "decoder.blocks.11.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159501>
+      [0.105723537504673, 0.11879222095012665, 0.006737913005053997, 0.05425174906849861, -0.020953308790922165, 0.00772686256095767, 0.05538606271147728, 0.05174220725893974, 0.02458597719669342, 0.05650372430682182, 0.07260715216398239, 0.015075696632266045, 0.07118107378482819, -0.02622274123132229, -0.004771863576024771, 0.13389313220977783, -0.04042479023337364, -0.09605908393859863, 0.05143333226442337, -0.0777275338768959, -0.038933414965867996, -0.01103443093597889, 0.22768071293830872, -0.051514096558094025, -0.09891602396965027, 0.0014073842903599143, -0.04144133999943733, 0.034522294998168945, -0.009654851630330086, 0.005805726628750563, 0.04466322436928749, -0.047319527715444565, -0.009854177013039589, 0.01743702031672001, 0.1440771073102951, -0.12892374396324158, 0.18401136994361877, -0.017713360488414764, -0.21362674236297607, 0.06416985392570496, 0.07322429120540619, 0.08671480417251587, 0.0764789879322052, 0.057795871049165726, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159502>
+      [
+        [0.06805934756994247, 0.09200220555067062, -0.03102017380297184, -0.20520317554473877, 0.06265048682689667, 0.17043784260749817, 0.037615444511175156, -0.24390925467014313, -0.06584632396697998, -0.36999693512916565, 0.19122055172920227, 0.07945571839809418, 0.008697953075170517, 0.19716542959213257, 0.17863412201404572, -0.01731661520898342, -0.3208216726779938, 0.21022184193134308, 0.080193892121315, 0.07145563513040543, -0.24923168122768402, -0.050284698605537415, -0.2518293559551239, 0.2810163199901581, -0.28573331236839294, 0.12340781837701797, -0.0859503522515297, 0.08418150991201401, -0.03493265062570572, 0.13855530321598053, -0.241315558552742, 0.15032462775707245, -0.25630655884742737, -0.03904435783624649, 0.0643249899148941, 0.26296404004096985, 0.44665995240211487, -0.001308600651100278, 0.16780276596546173, -0.14047899842262268, -0.03252283111214638, -0.3422131836414337, -0.15174603462219238, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159545>
+      [0.01611318439245224, 1.9620818784460425e-4, -0.033592935651540756, -0.014356587082147598, -0.010978053323924541, -0.005805983208119869, 0.0022555338218808174, 0.007051336579024792, 0.014428694732487202, -0.019858360290527344, -0.058242809027433395, -0.027789494022727013, -0.021741623058915138, 0.02190697006881237, -0.0035076746717095375, 0.002187394769862294, -0.022275205701589584, -0.009000930935144424, 0.0014367415569722652, -0.02442094311118126, -0.02785932831466198, -0.027073200792074203, 0.009673072025179863, -0.01975858025252819, -0.006040024105459452, -0.005454181227833033, -0.012051430530846119, 0.007628345862030983, -0.0019122350495308638, -0.031798556447029114, -0.03979314863681793, 0.0018334127962589264, 5.315942107699811e-4, -0.02355266362428665, 0.019198285415768623, -0.01209992729127407, 0.011508915573358536, 0.033759962767362595, 0.003140085143968463, -0.43169018626213074, -0.004638292361050844, 0.029909860342741013, -0.026687445119023323, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159546>
+      [
+        [0.02292151376605034, 0.0338389091193676, -0.047796934843063354, 0.09596998244524002, 0.045752089470624924, -0.030947083607316017, -0.06484285742044449, -0.021927157416939735, 0.08957719802856445, -0.06526286900043488, 0.048477549105882645, -0.007700455840677023, -0.09442861378192902, -0.13685542345046997, -0.10288318246603012, -0.09903551638126373, 0.17210477590560913, -0.014380788430571556, -0.081391841173172, -0.09592964500188828, -0.20048144459724426, -0.014696544967591763, 0.08353224396705627, 0.10173220932483673, -0.05892166867852211, -0.0928846076130867, 0.07746145129203796, 0.12805286049842834, -0.14344947040081024, 0.12638360261917114, 0.03233393654227257, 0.044042039662599564, -0.0408482551574707, -0.08512827754020691, 0.17795124650001526, -0.18981613218784332, -0.04125617817044258, 0.018192069604992867, 0.19313742220401764, -0.08462966978549957, 0.13086268305778503, 0.18106544017791748, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159541>
+      [-0.014248297549784184, -0.240375816822052, -0.018260201439261436, 0.11563233286142349, 0.18061132729053497, 0.04692136496305466, -0.009259623475372791, -0.05987045168876648, -0.10537739843130112, 0.10199987143278122, -0.10119312256574631, 0.054955385625362396, 0.08877909928560257, -0.034204259514808655, -0.030978145077824593, -0.14948132634162903, 0.013923843391239643, 0.22173760831356049, -0.044307757169008255, 0.11177702248096466, 0.25232768058776855, -0.011090553365647793, -0.02736673317849636, -0.05436551198363304, 0.035498980432748795, 0.06144917383790016, 0.10569152981042862, -0.06352245807647705, -0.014585292898118496, -0.08527898788452148, 0.06996647268533707, 0.15424810349941254, 0.2633742094039917, 0.07891955971717834, 0.10157502442598343, 0.15565523505210876, -0.05072539672255516, -0.015324545092880726, -0.13633786141872406, -0.0920839011669159, 0.02864094078540802, -0.1776469349861145, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159542>
+      [
+        [0.06602837890386581, -0.005861711222678423, -0.03592158108949661, -0.17321670055389404, -0.040567655116319656, -0.12914139032363892, -0.039053335785865784, 0.055556997656822205, -0.03793487325310707, -0.040671199560165405, -0.10253544896841049, -0.010256040841341019, -0.046774111688137054, -0.04418528825044632, -0.19765710830688477, 0.03096650168299675, 0.04684501513838768, -0.0827573910355568, 0.06590650230646133, 0.0626329854130745, -0.03907793387770653, -0.08920115977525711, 0.12399065494537354, 0.11888366937637329, 0.04018740355968475, -0.06762197613716125, -0.007350870408117771, 0.0679413229227066, -0.05717582628130913, -0.006823679432272911, -0.037478987127542496, -0.022401340305805206, -0.026354540139436722, -0.16326986253261566, 0.026277117431163788, -0.04454047232866287, -0.19500863552093506, -0.10626175254583359, 0.09581570327281952, 9.76486480794847e-4, 0.03719896450638771, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.7.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159603>
+      [0.003023461438715458, -0.0034503634087741375, -0.05022025108337402, 0.1445682793855667, -0.061383385211229324, -0.18525145947933197, 0.05382299795746803, 0.09621239453554153, 0.22644995152950287, 0.13868243992328644, -0.10454718768596649, -0.0445207841694355, 0.17207269370555878, 0.13456888496875763, -0.08831684291362762, -0.02446838468313217, -0.031328264623880386, 0.12339051067829132, 0.055783338844776154, -0.06627967208623886, 0.12010461091995239, -0.005991296377032995, -0.012475112453103065, -0.0091325668618083, -0.12514269351959229, -0.03106873109936714, -0.07901277393102646, 0.10679206997156143, 0.023926347494125366, 0.19130189716815948, -0.07669995725154877, -3.717075742315501e-4, -0.022119715809822083, -0.12196514755487442, -0.006166365463286638, -0.003968436270952225, 0.17010942101478577, -0.08083401620388031, -0.06381057947874069, 0.012830626219511032, 0.008812617510557175, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159604>
+      [
+        [0.02272615395486355, -0.03426380455493927, 0.10830746591091156, -0.0698532909154892, -0.04444117844104767, -0.1163613572716713, -0.10804831981658936, 0.027915891259908676, -0.06091436743736267, 0.11493780463933945, -0.12441886961460114, -0.12758924067020416, -0.08719192445278168, -0.08544804900884628, 0.01870325393974781, 0.06337859481573105, -0.05752550810575485, 0.08484397083520889, 0.10050169378519058, -8.142094011418521e-4, 0.04208269715309143, -0.0010115094482898712, 0.016743609681725502, -0.14341019093990326, -0.11040765047073364, -0.015847202390432358, 0.06745976209640503, 0.028722982853651047, 0.034336477518081665, -0.02375819906592369, -0.04028434678912163, 0.04014326259493828, -0.0828038826584816, 0.04731905460357666, -0.030171439051628113, 0.007872296497225761, -0.0554569847881794, -0.057010941207408905, -0.03682035207748413, 0.003613386768847704, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159528>
+      [3.5320030292496085e-4, -0.02352035790681839, 0.03579441457986832, -0.00819009356200695, -0.013341247104108334, 0.22570614516735077, 0.014364250004291534, 0.01957814209163189, -0.0029258071444928646, -0.005615453235805035, 0.006173497997224331, 0.03394452482461929, 0.04145542159676552, 0.02271554060280323, 0.027301738038659096, 0.023053526878356934, -0.030637608841061592, 0.0011183557799085975, 0.009655783884227276, -0.0031652075704187155, 0.004611491225659847, -8.690875256434083e-4, -0.0060260300524532795, -0.009716540575027466, 0.014348393306136131, -0.010869566351175308, -0.015734069049358368, 0.02538462169468403, -0.02972058765590191, -5.710391560569406e-4, 9.462513262405992e-4, 0.022110195830464363, 0.004091514740139246, 9.700193768367171e-4, 0.009012877009809017, -0.013626644387841225, 0.38099005818367004, 0.01451069489121437, -0.023601410910487175, 0.018054811283946037, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159529>
+      [
+        [-0.05810696259140968, 0.06249383091926575, -0.16588400304317474, 0.09654977917671204, 0.09147700667381287, 0.048064541071653366, -0.09367276728153229, 0.014363005757331848, 0.10144679248332977, 0.0233471617102623, 0.006492226850241423, 0.024173308163881302, -0.08379942923784256, 0.035400889813899994, 0.011924143880605698, 0.06395914405584335, -0.025091668590903282, 0.23154862225055695, 0.04634566977620125, -0.03464064002037048, 0.019783668220043182, -0.09660620987415314, -0.08186054974794388, -0.18600694835186005, -0.11908779293298721, 0.21912004053592682, -0.09747152775526047, -0.010526714846491814, -0.015264575369656086, -0.12838749587535858, 0.061404332518577576, -0.07993568480014801, -0.016672959551215172, 0.007367889396846294, 0.06115908920764923, -0.00501360883936286, -0.009648752398788929, -0.11571478843688965, 0.022876223549246788, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_28" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159666>
+      [395474071, 895712376]
+    >
+  },
+  "decoder.blocks.2.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159518>
+      [-0.0654396265745163, 0.10812345892190933, 0.04286130890250206, -0.2760961353778839, 0.08625604957342148, -0.2286910116672516, -0.04461458697915077, 7.275498937815428e-4, 0.10620112717151642, 0.10470309853553772, -0.08921228349208832, 0.07638224959373474, 0.1359548419713974, 0.011987983249127865, -0.13395175337791443, -0.012165425345301628, -0.02094808965921402, -0.24327068030834198, 0.19702652096748352, -0.11469811946153641, 0.06039329245686531, -0.0885312408208847, 0.03518642485141754, -0.032149139791727066, 0.051021404564380646, 0.05498753488063812, 0.08870009332895279, 0.06739293038845062, 0.0710294097661972, 0.13408461213111877, 0.029301894828677177, -0.00930361170321703, 0.025734776630997658, -0.24615506827831268, -0.08097236603498459, -0.06227843463420868, 0.005404133815318346, -0.11257304251194, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159519>
+      [
+        [-0.02398330718278885, -0.20910729467868805, -0.029130421578884125, -0.014159053564071655, 0.12113775312900543, -0.02065293677151203, -0.11999223381280899, -0.269276887178421, 7.631823536939919e-4, 0.04650465399026871, -0.045628879219293594, -0.12281503528356552, 0.02982284128665924, 0.06332483142614365, -0.05124947428703308, 0.004213565960526466, 0.05839945375919342, 0.1387341022491455, 0.039438631385564804, -0.07732643932104111, 0.11901428550481796, -0.0635095089673996, 0.06668639183044434, 0.15541701018810272, -0.04893676936626434, -0.13186554610729218, 0.03706846386194229, 0.08605990558862686, -0.20225566625595093, -0.11350183933973312, 0.06946399807929993, -6.101589533500373e-4, -0.0847146287560463, -0.04157274588942528, 0.0049753207713365555, -0.015184903517365456, -0.16200494766235352, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159539>
+      [-0.09291772544384003, -0.04217880591750145, -0.020356424152851105, 0.04034513235092163, -0.013874712400138378, -0.11893210560083389, -0.05924098193645477, -0.027365664020180702, 0.05266174301505089, 0.008417871780693531, -0.0861397385597229, -0.019344178959727287, -0.06396947801113129, 0.046350132673978806, 0.05676386505365372, -5.086865712655708e-6, 0.10372238606214523, -0.21678526699543, -0.09768351167440414, -0.009167345240712166, 0.08033648878335953, 0.0944061353802681, 0.08438227325677872, 0.22630733251571655, -0.14517657458782196, -0.007395234890282154, -0.13697558641433716, -0.059589944779872894, 0.1007838323712349, 0.006305344868451357, -0.16571001708507538, 0.011307205073535442, 0.07076525688171387, -0.007749190088361502, -0.03437885269522667, 0.11359181255102158, -0.0808584913611412, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159540>
+      [
+        [0.07191380113363266, -0.08377204835414886, 0.15178976953029633, 0.2953050136566162, 0.2969595789909363, 0.017495974898338318, -0.2548777759075165, -0.10065208375453949, 0.23874078691005707, -0.013963986188173294, 0.016722165048122406, 0.29725781083106995, -0.05463255196809769, -0.26017990708351135, 0.042508628219366074, 0.14374642074108124, 0.3041999638080597, 0.3108743131160736, -0.03671329841017723, -0.14828334748744965, -0.36135849356651306, 0.13315536081790924, 0.002669523935765028, 0.342965304851532, -0.00918323453515768, 0.5080976486206055, -0.33983874320983887, 0.34413501620292664, 0.34606099128723145, -0.09834522753953934, 0.09321682155132294, 0.027324317023158073, -0.029650583863258362, -0.07398593425750732, 0.28067755699157715, 0.086429163813591, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.5.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159581>
+      [395474071, 893560489]
+    >
+  },
+  "lora_11" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159686>
+      [
+        [0.004956857301294804, -0.02828885428607464, 0.0559140220284462, 0.05202609300613403, 0.008548657409846783, -0.023493383079767227, 0.006195007357746363, -0.020830251276493073, 0.03057236224412918, 0.0143776535987854, -0.020545436069369316, 0.03292283043265343, 0.03512151539325714, -0.012319362722337246, 0.03890087082982063, -0.0407150536775589, 0.011432521976530552, 0.031270284205675125, 0.0020758803002536297, -0.06901536136865616, -0.025866033509373665, 0.044413164258003235, -0.044181305915117264, -0.00868409313261509, 0.05809491127729416, 3.953681734856218e-4, 0.004007474984973669, 0.05162840336561203, -0.012431161478161812, 0.017081625759601593, -7.223934517242014e-4, 0.0025061180349439383, 0.037967193871736526, 0.015688404440879822, -0.046558067202568054, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159687>
+      [
+        [0.006742439698427916, -0.01151413843035698, -0.010424800217151642, 0.009824652224779129],
+        [-0.021228816360235214, 0.025868872180581093, 0.024751514196395874, -0.02656584233045578],
+        [-0.023876020684838295, 0.021600913256406784, 0.020814448595046997, -0.020363835617899895],
+        [-0.023667559027671814, 0.01793302223086357, 0.018200237303972244, -0.02127677947282791],
+        [-0.0022785488981753588, 0.004010498523712158, 0.002003428293392062, -0.00127732555847615],
+        [0.003817650955170393, 2.985169121529907e-4, -0.0033148780930787325, 0.004626348149031401],
+        [0.025137564167380333, -0.02193928323686123, -0.018912479281425476, 0.021867897361516953],
+        [0.0032366516534239054, -0.0037969406694173813, -0.0015754688065499067, 0.0026685474440455437],
+        [0.005896549206227064, -0.0020418099593371153, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159552>
+      [-0.05897606164216995, 0.15732403099536896, -0.08401917666196823, -0.04356243461370468, -5.054371431469917e-4, -0.15412287414073944, -0.017296316102147102, 0.013370297849178314, 0.18167349696159363, 0.14976365864276886, -0.033649567514657974, -0.12340114265680313, 0.11543204635381699, 0.1179199367761612, -0.16670309007167816, 0.03197641670703888, -0.09725514054298401, -0.13734258711338043, 0.05221153423190117, -0.19777816534042358, -0.016869299113750458, -0.09240839630365372, -0.041709307581186295, 0.04953768476843834, -0.00948934257030487, -0.061544936150312424, 0.055073339492082596, 0.10132436454296112, 0.09503704309463501, 0.2767695188522339, -0.04178015887737274, -0.09199224412441254, -0.13981661200523376, -0.18259884417057037, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159553>
+      [
+        [-0.016589239239692688, 0.033356476575136185, -0.025944791734218597, -0.06458347290754318, -0.008617261424660683, -0.06050972640514374, 0.026528408750891685, -0.018711822107434273, 0.06334453076124191, -0.07016438990831375, -0.040474455803632736, -0.08900412917137146, -0.05415213108062744, 0.00924048200249672, -0.09849966317415237, 0.017269760370254517, 0.03402997925877571, -0.0723804235458374, 0.06440147757530212, 0.11115777492523193, -0.04786305129528046, 0.013474693521857262, 0.18404416739940643, -0.037795290350914, -0.1344190388917923, -0.041169364005327225, -0.02169586904346943, -0.09167039394378662, -0.047637294977903366, -0.010682673193514347, -0.017419137060642242, -0.09429912269115448, 0.09434686601161957, ...],
+        ...
+      ]
+    >
+  },
+  "lora_31" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159730>
+      [
+        [-0.06513712555170059, -0.009292611852288246, -0.01504357997328043, 0.07614951580762863, -0.024845801293849945, 0.03274315223097801, -0.07332859188318253, 0.04235648363828659, 0.032661739736795425, 0.05964268743991852, -0.06988877803087234, -0.03435341268777847, 0.03445039317011833, -0.05487819388508797, -0.03597147390246391, -0.03317476063966751, -0.04680561274290085, 0.01296012569218874, 0.038500793278217316, 0.01758326217532158, 0.022209186106920242, -0.013884267769753933, 0.01533410232514143, 0.002861392218619585, 0.02800997905433178, -0.02997712418437004, 0.00818818248808384, 0.024505749344825745, 0.030043108388781548, -0.04764561355113983, -0.03161556273698807, 0.0374082513153553, 0.0612298920750618, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159731>
+      [
+        [0.05996010825037956, 0.07750114053487778, 0.09074169397354126, -0.08503848314285278],
+        [0.0312088243663311, 0.0310804545879364, 0.021347643807530403, -0.020020773634314537],
+        [0.0024743115063756704, -0.03174814209342003, -0.027160950005054474, 0.022457432001829147],
+        [-0.016387641429901123, -0.009858270175755024, -0.016288205981254578, 0.01330987736582756],
+        [-0.006001289933919907, 0.016844794154167175, 0.012104502879083157, -0.01562780886888504],
+        [-0.016300056129693985, -0.016712622717022896, -0.012675249949097633, 0.013209178112447262],
+        [-0.03060399554669857, -0.03406323119997978, -0.037725456058979034, 0.03810826316475868],
+        [0.007924048230051994, 0.024135490879416466, 0.019334517419338226, -0.017068086192011833],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159537>
+      [0.02195732854306698, 0.035705193877220154, 0.04064951837062836, -0.025932105258107185, 0.014330854639410973, -0.039580412209033966, -0.1155749261379242, 0.028433658182621002, 0.030217133462429047, -0.007304288912564516, 0.002263169502839446, 0.048969969153404236, 0.05460219457745552, 0.004443574231117964, -0.07364215701818466, 0.029881520196795464, -0.01567690446972847, -0.01119413785636425, 0.010527174919843674, -0.014802615158259869, 0.0057569448836147785, -0.020488295704126358, 0.024373553693294525, -0.02502831257879734, 0.019044460728764534, 0.02883622609078884, 0.056766364723443985, 0.021289346739649773, 0.003697927575558424, 0.03079884685575962, 0.0382881686091423, 0.011968711391091347, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159538>
+      [0.28222545981407166, 0.3131215572357178, 0.3034003973007202, 0.3393371105194092, 0.3154321610927582, 0.3309932053089142, 0.30264604091644287, 0.13720403611660004, 0.3059060573577881, 0.3251676857471466, 0.30764150619506836, 0.3226858973503113, 0.3249446153640747, 0.307298868894577, 0.28870701789855957, 0.3071806728839874, 0.2878659665584564, 0.3310546875, 0.29914483428001404, 0.2799876928329468, 0.350590318441391, 0.31099772453308105, 0.33301326632499695, 0.29779165983200073, 0.30957064032554626, 0.3072805106639862, 0.32713234424591064, 0.3132126033306122, 0.3168300688266754, 0.3154486119747162, 0.3116898834705353, ...]
+    >
+  },
+  "lora_10" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159684>
+      [
+        [-0.030410444363951683, 0.0310379508882761, -0.04639219865202904, 0.013168208301067352, -0.04338120296597481, 2.2639110102318227e-4, -0.0012145009823143482, 0.007196903228759766, 0.006929646711796522, -0.0061210705898702145, 0.015262561850249767, -0.012916750274598598, -0.04946300759911537, -0.023377155885100365, -0.0019214677158743143, 0.016208717599511147, -0.00415028166025877, -0.0017537774983793497, -0.0041943080723285675, 0.061729613691568375, -0.039979204535484314, -0.03364807367324829, -0.034671999514102936, 0.004129850771278143, 0.010853813961148262, 0.019871002063155174, 0.0022171379532665014, -9.651712607592344e-4, -0.012251141481101513, 0.02985130250453949, -0.03577832505106926, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159685>
+      [
+        [-0.03437528759241104, 0.055804282426834106, -0.03753890097141266, -0.03228529170155525],
+        [-0.007361007854342461, 0.008387524634599686, -0.009829465299844742, -0.0029657466802746058],
+        [-0.029492367058992386, 0.043887659907341, -0.029018059372901917, -0.028181690722703934],
+        [0.02194155380129814, -0.0738721638917923, 0.006303973030298948, 0.02253391407430172],
+        [0.00394438998773694, -0.01578967273235321, -0.009311840869486332, 0.0033968607895076275],
+        [-0.001049176906235516, -0.038098424673080444, -0.008713757619261742, 0.009577654302120209],
+        [-0.04944407194852829, 0.04444355517625809, -0.045708220452070236, -0.05055253580212593],
+        [0.004626946989446878, 0.02426995150744915, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159641>
+      [-0.1255052387714386, 0.2206331193447113, 0.02155466005206108, -0.06883163750171661, -0.1582368165254593, -0.03266475349664688, 0.08761484920978546, -0.06262274831533432, 0.08110350370407104, -0.06443772464990616, -0.01988857425749302, -0.14905107021331787, 0.026666700839996338, 0.11045331507921219, 0.12034416198730469, -0.03482687100768089, -0.06882551312446594, -0.06385401636362076, 0.10434503108263016, -0.06925361603498459, 0.004499129019677639, 0.029036764055490494, 0.12643346190452576, 0.06261695176362991, 0.007506237365305424, -0.03166307136416435, 0.005090613849461079, 0.12981073558330536, 0.042653005570173264, -0.0895552709698677, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159642>
+      [
+        [0.09414546191692352, -0.05349555239081383, -0.09394310414791107, 0.0680985152721405, 0.05514451488852501, 0.10338378697633743, -0.027529548853635788, 0.03738649934530258, 0.12017187476158142, 0.10639435052871704, -0.21103039383888245, 0.09546253830194473, 0.06053944304585457, 0.010116199031472206, 0.13734182715415955, -0.06583978235721588, -0.04140675812959671, 0.1631747931241989, -0.20215000212192535, 0.045266926288604736, 0.09429733455181122, 0.09323552995920181, -0.008121903985738754, 0.0823206678032875, 0.0871056392788887, -0.15799662470817566, 0.13381333649158478, -0.03152550011873245, -0.23124545812606812, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.8.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159618>
+      [-0.11210184544324875, -0.12243035435676575, -0.18696080148220062, -0.09358573704957962, -0.07174187898635864, -0.09109503775835037, -0.22353070974349976, -0.23647837340831757, -0.009258066304028034, -0.07567327469587326, -0.020744603127241135, 0.015013153664767742, -0.05726751312613487, -0.037477463483810425, -0.02229940891265869, -0.14848092198371887, -0.038814179599285126, 0.02283428981900215, -0.17796941101551056, -0.03959912434220314, 0.026215065270662308, -0.024661418050527573, -0.16912145912647247, -0.022491857409477234, -0.0367843434214592, -0.03149944916367531, -0.07467391341924667, -0.23281385004520416, -0.15074151754379272, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159619>
+      [
+        [0.07281597703695297, 0.23076365888118744, 0.056254733353853226, -0.007391960825771093, 0.37602195143699646, 0.026575006544589996, -0.0559421107172966, 0.24213534593582153, 0.17022763192653656, 0.008780462667346, 0.008517129346728325, -0.004474610555917025, 0.08918315172195435, -0.0734836533665657, -0.2731582224369049, -0.0711795762181282, -0.09748861193656921, 0.05456811189651489, -0.017072979360818863, 0.02093295007944107, -0.0573551245033741, -0.2868148684501648, -0.0835830420255661, -0.07690536230802536, -0.01711919531226158, -0.1358148157596588, -0.09262753278017044, -0.16049614548683167, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159645>
+      [0.05707442760467529, 0.035462647676467896, -0.0991213247179985, 0.13527709245681763, -0.028422338888049126, -0.025333665311336517, 0.009800232946872711, 0.0038071630988270044, 0.2587926983833313, -0.2757236957550049, -0.20594574511051178, -0.10678356885910034, 0.07663259655237198, 0.10082900524139404, 0.09312675893306732, 0.02456960454583168, -0.02361578680574894, 0.027035534381866455, -0.17550106346607208, -0.019421570003032684, 0.17456819117069244, -0.27237164974212646, -0.06578843295574188, 0.7469214200973511, -0.16401293873786926, -0.040414296090602875, 0.0813840925693512, 0.22788934409618378, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159646>
+      [
+        [0.07092145085334778, -0.1273377686738968, 0.18363283574581146, 0.0030052068177610636, -0.11931692808866501, 0.09142619371414185, 0.09066392481327057, -0.11962020397186279, -0.11546863615512848, -0.2486332207918167, -0.01928895153105259, -0.13211512565612793, 0.012719957157969475, -0.058824148029088974, -0.024515893310308456, -0.06520464271306992, -0.1823996901512146, 0.08205809444189072, -0.14308585226535797, -0.02228454314172268, 0.07376360148191452, 0.1657320261001587, 0.12012247741222382, -0.05113732069730759, 0.09645874798297882, -0.05014803633093834, 0.16555407643318176, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.6.self_attention.key" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159590>
+      [-0.1274530589580536, -0.12059053033590317, -0.007807011716067791, 0.10612983256578445, -0.15291491150856018, 0.02204704098403454, -0.018509021028876305, -0.052053213119506836, -0.12142118811607361, 0.09243933856487274, -0.07746855169534683, -0.2270767092704773, 0.06773963570594788, 0.20025405287742615, 0.08527366816997528, 0.17828650772571564, -0.23929782211780548, 0.08052106946706772, -0.04288453236222267, -0.10904651135206223, -0.07623006403446198, 0.12980422377586365, -0.022937437519431114, 0.1890099197626114, 0.033789169043302536, -0.01818382926285267, -0.09066783636808395, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159591>
+      [
+        [0.23245984315872192, -0.051963526755571365, 0.03376476839184761, -0.17533107101917267, -0.0015645339153707027, -0.21227991580963135, -0.20261846482753754, 0.2514711320400238, 0.11193699389696121, 0.07263650000095367, 0.1105310469865799, 0.12566789984703064, -0.029312685132026672, -0.18712376058101654, -0.18661442399024963, -0.20233362913131714, -0.25359874963760376, -0.06487743556499481, -0.08297345787286758, 0.03883111849427223, 0.027809424325823784, 0.05575752630829811, 0.0707707554101944, -0.04197012260556221, -8.136677788570523e-4, 0.01103792805224657, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.10.self_attention_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159497>
+      [0.030510496348142624, 0.006001842673867941, 0.048768121749162674, 0.01165001466870308, 0.005879620555788279, 0.010598479770123959, -0.0672491267323494, 0.025556962937116623, 0.013904724270105362, 6.435069954022765e-4, 0.007581857033073902, 0.012246792204678059, 0.026725852862000465, 0.02789079211652279, 0.04797949641942978, -0.004149633459746838, 0.0409918837249279, 0.034725841134786606, -0.0010700526181608438, 0.01325390674173832, 0.03363116458058357, 0.023286549374461174, 0.02105352096259594, 0.025586696341633797, 0.020323842763900757, 0.006301491055637598, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159498>
+      [0.426937460899353, 0.3798982501029968, 0.38925623893737793, 0.36285722255706787, 0.3721630275249481, 0.3487066626548767, 0.5020099878311157, 0.35842880606651306, 0.3820701539516449, 0.32065778970718384, 0.4148608148097992, 0.35868051648139954, 0.3574266731739044, 0.3837886452674866, 0.44628968834877014, 0.397741436958313, 0.3976704776287079, 0.3701581656932831, 0.3779294490814209, 0.39748460054397583, 0.3310501277446747, 0.3544250428676605, 0.38002175092697144, 0.41307657957077026, 0.379832923412323, ...]
+    >
+  },
+  "decoder.blocks.11.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159513>
+      [395474071, 897264483]
+    >
+  },
+  "decoder.blocks.4.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159550>
+      [-0.06427578628063202, -0.29860806465148926, -0.11274097114801407, -0.1695093810558319, -0.029283864423632622, 0.015383693389594555, -0.059798579663038254, -0.21982493996620178, -0.11109853535890579, -0.025041809305548668, -0.17913004755973816, -0.04023921862244606, -0.15255160629749298, -0.14760905504226685, -0.05613582208752632, -0.08194784075021744, -0.08518823236227036, -0.10574408620595932, -0.09536109864711761, 0.04650188237428665, -0.24487002193927765, -0.10550493001937866, -0.07493823766708374, 0.3118955194950104, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159551>
+      [
+        [-4.077995545230806e-4, -0.1200379952788353, -0.012310190126299858, -0.24376054108142853, 0.1328510195016861, 0.13179974257946014, 0.02635245770215988, 0.057356610894203186, -0.06828179955482483, -0.01686907559633255, 0.049044106155633926, -0.3784016966819763, -0.03531080484390259, 0.43567171692848206, 0.02976839430630207, -0.06014109030365944, 0.18706151843070984, -0.050236742943525314, 0.11668948084115982, 0.05957753583788872, -0.14054043591022491, -0.013522407039999962, -0.06838822364807129, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.0.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159456>
+      [0.1502915918827057, -0.15426146984100342, -0.1466306895017624, -0.09912773221731186, 0.03380264714360237, -0.03444754704833031, -0.0706353709101677, -0.0936073362827301, 0.08110949397087097, 0.031160973012447357, -0.19926859438419342, -0.037245020270347595, 0.0030495061073452234, 0.04989158734679222, -0.0535597987473011, 0.0374077744781971, -0.19088934361934662, -0.08153925091028214, 0.0491158701479435, 0.14187365770339966, -0.11211564391851425, -0.09672139585018158, 0.05310625955462456, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159457>
+      [
+        [0.3127181828022003, -0.18741346895694733, 0.0980248749256134, -0.030339280143380165, -0.021640362218022346, -0.021060511469841003, -0.17938977479934692, -0.3298454284667969, 0.29462477564811707, 0.016695095226168633, -0.17451533675193787, -0.01856379583477974, 0.015662474557757378, 0.019278528168797493, 0.007864857092499733, 0.19694651663303375, -0.10614901781082153, -0.013053175993263721, 0.014888686127960682, 0.39647337794303894, -0.022225921973586082, 0.03043077513575554, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159560>
+      [-0.030168335884809494, 0.10533975064754486, 0.15787462890148163, 0.024759536609053612, -0.006538494024425745, 0.060618676245212555, 0.08839995414018631, -0.13495968282222748, -0.020193777978420258, 0.12939752638339996, -0.08156191557645798, 0.34852737188339233, -0.25281667709350586, 0.0726567953824997, -0.00879716593772173, 0.46894973516464233, -0.20609457790851593, 0.09965331107378006, 0.16798031330108643, 0.21133244037628174, 0.16016334295272827, 0.023227756842970848, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159561>
+      [
+        [0.05423329025506973, 0.10368772596120834, -0.12026900798082352, 0.2241293340921402, 0.07213354855775833, -0.10475268959999084, -0.098123699426651, -0.03631935641169548, 0.3400250971317291, 0.11668488383293152, 0.3846721351146698, -0.04552015662193298, 0.03707210719585419, 0.060659412294626236, -0.13420982658863068, -0.06594616919755936, 0.17946170270442963, -0.10135768353939056, -8.781739161349833e-4, 0.03128969296813011, 0.10800420492887497, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.8.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159622>
+      [0.026478445157408714, 0.03058476373553276, 0.03277738764882088, 0.027175817638635635, -0.03420574590563774, -0.04291548207402229, -0.02005288004875183, 0.06033172458410263, 0.042357590049505234, 0.015196949243545532, -0.006372882053256035, 0.014285472221672535, 0.02985285595059395, 0.006489758379757404, -0.03699921444058418, 0.02677823044359684, -0.01978689804673195, 0.029895320534706116, 0.001117934938520193, -0.03488800302147865, 0.03796650841832161, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159623>
+      [0.256835401058197, 0.2554992139339447, 0.26428794860839844, 0.2509766221046448, 0.25293001532554626, 0.260743111371994, 0.3623034656047821, 0.2026355266571045, 0.2724631726741791, 0.23681232333183289, 0.26465314626693726, 0.2565948963165283, 0.2509452700614929, 0.26839280128479004, 0.28613126277923584, 0.25516241788864136, 0.26855340600013733, 0.2548842430114746, 0.25679123401641846, 0.25487300753593445, ...]
+    >
+  },
+  "decoder.blocks.6.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159596>
+      [0.008094793185591698, -0.012891687452793121, 0.012476509436964989, 0.021194303408265114, 0.04015762358903885, -0.02663881704211235, -0.023752382025122643, -0.001071950071491301, 0.03309759870171547, 0.010285280644893646, -0.006889031268656254, -0.1257532835006714, 9.324409766122699e-4, 0.01171852182596922, -0.043873947113752365, -0.008764470927417278, -0.07170451432466507, -0.012096060439944267, 0.011502828449010849, 0.008124460466206074, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159597>
+      [
+        [-0.018813427537679672, 0.19313490390777588, 0.05417853593826294, 0.023874085396528244, -0.1469319462776184, -0.03817090019583702, -0.08952698111534119, 0.053204476833343506, 0.03557916358113289, -0.07985074818134308, -0.001789747504517436, -0.14399871230125427, 0.18803372979164124, 0.01738598197698593, 0.038275156170129776, 0.03143403306603432, -0.04185841605067253, 0.07224993407726288, 0.2724269926548004, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.3.ffn.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159535>
+      [-0.0232847947627306, 0.10563581436872482, -0.0531383752822876, -0.09454120695590973, -0.015325434505939484, -0.08506536483764648, -0.07138027250766754, 0.05388682335615158, 0.14111925661563873, 0.1348050981760025, -0.07036365568637848, -0.0036540981382131577, 0.041501376777887344, 0.07138317078351974, -0.1433209776878357, 0.033328648656606674, -0.025909310206770897, -0.15808121860027313, 0.058489684015512466, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[3072][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159536>
+      [
+        [0.07660453766584396, 0.005029582418501377, -0.08185179531574249, -0.04126457870006561, 0.06943788379430771, -0.04354039579629898, 0.13279001414775848, 0.057913508266210556, -0.04257570207118988, -0.0920814573764801, -0.2037155032157898, -0.0021956718992441893, 0.06303318589925766, 0.0779477059841156, -0.028110455721616745, -0.22464191913604736, 0.08300850540399551, -0.037264134734869, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_9" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159676>
+      [395474071, 892727664]
+    >
+  },
+  "lora_28" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159722>
+      [
+        [0.02409186027944088, 0.05066072940826416, 0.019087938591837883, 0.002792396117001772, -0.015144149772822857, 0.02075306884944439, -0.012328087352216244, -0.040207985788583755, -0.010948705486953259, 0.02314729616045952, 0.03625671938061714, -0.005625476595014334, -0.015689939260482788, 0.00595064228400588, -0.056853801012039185, -0.03349803015589714, -0.007264561485499144, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159723>
+      [
+        [-0.051792703568935394, 0.05165807157754898, -0.053128816187381744, 0.006393659394234419],
+        [0.01732633449137211, -0.014688405208289623, 0.013899880461394787, 0.01030399464070797],
+        [-0.03745809942483902, 0.035558171570301056, -0.035524483770132065, -0.03139067441225052],
+        [-0.021824197843670845, 0.02301817759871483, -0.023052792996168137, -0.016310708597302437],
+        ...
+      ]
+    >
+  },
+  "dropout_25" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159664>
+      [395474071, 894786760]
+    >
+  },
+  "decoder.blocks.8.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159628>
+      [-0.016666432842612267, -0.3908640146255493, -0.14189036190509796, -0.09550853818655014, 0.028818266466259956, -0.03564365208148956, 0.39664602279663086, -0.1003335490822792, -0.12153777480125427, 0.25413286685943604, -0.25467512011528015, 0.2728674113750458, -0.14818769693374634, 0.03464064374566078, -0.01881992444396019, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159629>
+      [
+        [0.04895172640681267, -0.13535946607589722, 0.08867701888084412, 0.03470441326498985, 0.16805638372898102, -0.04044034704566002, 0.02029840461909771, 0.12461696565151215, 0.038629818707704544, 0.0026324870996177197, 0.1111854836344719, -0.10957732796669006, 0.008841103874146938, 0.22030411660671234, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.1.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159479>
+      [395474071, 892271536]
+    >
+  },
+  "lora_13" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159690>
+      [
+        [-0.019343532621860504, -0.006641401443630457, -0.053812649101018906, -0.01882539503276348, 0.01662364788353443, 0.013064110651612282, 0.03844739869236946, 0.037409231066703796, 0.03160002455115318, 0.0023471987806260586, 0.01221923716366291, 0.009693276137113571, -0.04732055217027664, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159691>
+      [
+        [0.011386657133698463, -0.0026013364549726248, 4.4548569712787867e-4, 0.01640988141298294],
+        [0.030903147533535957, -0.013186014257371426, -0.025648925453424454, 0.03624676540493965],
+        [-0.003473770571872592, 0.001432099030353129, 0.015659870579838753, -0.007173046004027128],
+        ...
+      ]
+    >
+  },
+  "lora_20" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159706>
+      [
+        [-0.019149648025631905, -0.04179849103093147, 0.04563399776816368, -0.04848794639110565, -0.007895523682236671, 0.00810717698186636, 0.031924840062856674, 0.04129841551184654, 0.003449114738032222, -0.035349708050489426, 0.010264318436384201, 0.02295640856027603, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159707>
+      [
+        [0.015928171575069427, 0.020195413380861282, 0.022573331370949745, -0.01917475089430809],
+        [0.03751880303025246, 0.030790215358138084, 0.02527761459350586, -0.03992804139852524],
+        [-4.467929829843342e-5, 0.005839451216161251, 0.003674378851428628, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.9.ffn.intermediate" => %{
+    "bias" => #Nx.Tensor<
+      f32[3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159635>
+      [-0.15674668550491333, -0.05856061354279518, -0.1862010508775711, -0.05574220418930054, 0.05308351293206215, -0.23877263069152832, -0.1725977510213852, -0.16667550802230835, -0.1204790323972702, 0.10092921555042267, -0.1463088095188141, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][3072]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159636>
+      [
+        [-0.1263384222984314, 0.10032892227172852, 0.04315217211842537, -0.34024444222450256, 0.03990277275443077, -0.1816384494304657, -0.08722347021102905, -0.09134645760059357, 0.08901876211166382, 0.2486005276441574, ...],
+        ...
+      ]
+    >
+  },
+  "lora_7" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159746>
+      [
+        [-0.014727325178682804, 0.011092322878539562, 0.008330784738063812, 0.002303948625922203, -0.029915494844317436, 0.022137807682156563, -0.036588750779628754, 0.024478890001773834, 0.014124404639005661, -0.014875788241624832, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159747>
+      [
+        [0.03629877045750618, 0.03812898322939873, 0.0019022112246602774, -0.023138193413615227],
+        [0.019500525668263435, 0.025901945307850838, -0.030735692009329796, -0.013260922394692898],
+        [-8.917601080611348e-4, ...],
+        ...
+      ]
+    >
+  },
+  "dropout_6" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159674>
+      [395474071, 892287757]
+    >
+  },
+  "decoder.blocks.11.self_attention.query" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159509>
+      [-0.22222381830215454, 0.054906319826841354, 0.03307081758975983, 0.1580498218536377, 0.0302886962890625, -0.2349749058485031, -0.3064831495285034, -0.11609630286693573, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159510>
+      [
+        [-0.2175447642803192, 0.060769811272621155, -0.06370636075735092, -0.010534803383052349, 0.03727848827838898, 0.038609497249126434, 0.0018609011312946677, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.1.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159477>
+      [0.023383773863315582, 0.019925691187381744, -0.010859258472919464, 0.6510787010192871, -0.007127456832677126, 3.0829233583062887e-4, -0.0018755021737888455, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159478>
+      [
+        [-0.009291327558457851, 0.030902646481990814, 0.077150858938694, 0.03817647323012352, -0.11329539120197296, -0.028751656413078308, ...],
+        ...
+      ]
+    >
+  },
+  "lora_19" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159702>
+      [
+        [0.020678414031863213, -0.03255373612046242, 0.017044618725776672, -0.024223461747169495, -0.049915947020053864, 0.02573712356388569, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159703>
+      [
+        [0.017584223300218582, -0.018938031047582626, -0.016168680042028427, 0.00450759194791317],
+        [0.006394579075276852, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.2.self_attention_dropout" => %{
+    "key" => #Nx.Tensor<
+      u32[2]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159530>
+      [395474071, 892572512]
+    >
+  },
+  "lora_5" => %{
+    "lora_a" => #Nx.Tensor<
+      f32[4][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159742>
+      [
+        [0.007271529175341129, 0.01657024957239628, 0.040927913039922714, -0.011593337170779705, ...],
+        ...
+      ]
+    >,
+    "lora_b" => #Nx.Tensor<
+      f32[768][4]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159743>
+      [
+        [0.007306005340069532, -0.008706910535693169, -0.007726146839559078, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.11.self_attention.value" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159511>
+      [0.05557013303041458, -0.023522645235061646, 0.020958656445145607, ...]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[768][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159512>
+      [
+        [0.09672704339027405, 0.02168218418955803, ...],
+        ...
+      ]
+    >
+  },
+  "embedder.token_embedding" => %{
+    "kernel" => #Nx.Tensor<
+      f32[50257][768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159678>
+      [
+        [-0.11010301113128662, -0.03926672413945198, ...],
+        ...
+      ]
+    >
+  },
+  "decoder.blocks.4.output_norm" => %{
+    "beta" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159554>
+      [0.03581799939274788, ...]
+    >,
+    "gamma" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159555>
+      [...]
+    >
+  },
+  "decoder.blocks.10.self_attention.output" => %{
+    "bias" => #Nx.Tensor<
+      f32[768]
+      EXLA.Backend<cuda:0, 0.858622466.847642637.159490>
+      [...]
+    >,
+    ...
+  },
+  "decoder.blocks.0.output_norm" => %{...},
+  ...
+}
+```
+
 ## Text Generation
 
 ```elixir
@@ -230,5 +1091,62 @@ serving = Bumblebee.Text.generation(lora_model_info, tokenizer, lora_generation_
 
 text
 |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+   What shall I do?
+
+BOLIVIA:
+I will give you my trust, sir.
+
+ROMANIA:
+I have my trust; you are, and I swear I have it
+I have it.
+
+BOLIVIA:
+That is it?
+
+ROMANIA:
+Yes, I do; you are your man.
+
+BOLIVIA:
+Yes, I have it; but I cannot swear
+I have it; I have it.
+
+ROMANIA:
+That is it?
+
+BOLIVIA:
+That is it, sir; I have it.
+
+ROMANIA:
+Yes, sir; you have it; but I cannot swear
+I have it; I have it.
+
+BOLIVIA:
+Well, I do, sir; I am the first man in this room.
+
+ROMANIA:
+What, what, what, what?
+
+BOLIVIA:
+The second; but I am in the wrong place.
+
+ROMANIA:
+Well, what, what?
+
+BOLIVIA:
+I will not.
+
+ROMANIA:
+Well, what,
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
