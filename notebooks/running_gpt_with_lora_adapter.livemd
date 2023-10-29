@@ -1,4 +1,4 @@
-# Loading LoRA Params
+# Running GPT with LoRA Adapter
 
 ```elixir
 Mix.install([
