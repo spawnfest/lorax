@@ -13,6 +13,9 @@ LoRA introduces a more efficient method for adaptation by freezing the original 
 
 ## How To Fine-tune an LLM
 
+View the notebooks directory to see an example of how to fine-tune, and perform text generation using LoRA adapters.
+
+In general,
 1. Import your model
 2. Freeze your model
 3. Inject trainable LoRA parameters
