@@ -1,5 +1,3 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # LoRA Fine-tuning
 
 ```elixir
@@ -9,7 +7,7 @@ Mix.install([
   {:nx, "~> 0.6.1"},
   {:exla, "~> 0.6.1"},
   {:explorer, "~> 0.7.0"},
-  {:lorax, path: "/Users/ted/CS/elixir/lorax"},
+  {:lorax, git: "https://github.com/spawnfest/lorax.git"},
   {:req, "~> 0.4.0"},
   {:kino, "~> 0.11.0"}
 ])
@@ -17,7 +15,17 @@ Mix.install([
 Nx.default_backend(EXLA.Backend)
 ```
 
-## Introduction
+## Hyperparameters
+
+```elixir
+batch_size = 4
+sequence_length = 512
+r = 4
+lora_alpha = 8
+lora_dropout = 0.05
+
+:ok
+```
 
 ## Load a model
 
@@ -25,31 +33,6 @@ Nx.default_backend(EXLA.Backend)
 {:ok, spec} = Bumblebee.load_spec({:hf, "gpt2"})
 {:ok, model} = Bumblebee.load_model({:hf, "gpt2"}, spec: spec)
 {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "gpt2"})
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{:ok,
- %Bumblebee.Text.Gpt2Tokenizer{
-   tokenizer: #Tokenizers.Tokenizer<[
-     vocab_size: 50257,
-     byte_fallback: false,
-     continuing_subword_prefix: "",
-     dropout: nil,
-     end_of_word_suffix: "",
-     fuse_unk: false,
-     model_type: "bpe",
-     unk_token: nil
-   ]>,
-   special_tokens: %{
-     pad: "<|endoftext|>",
-     eos: "<|endoftext|>",
-     bos: "<|endoftext|>",
-     unk: "<|endoftext|>"
-   },
-   additional_special_tokens: []
- }}
 ```
 
 ## Prepare a dataset
@@ -62,16 +45,7 @@ text =
   ).body
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-"First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?\n\nAll:\nResolved. resolved.\n\nFirst Citizen:\nFirst, you know Caius Marcius is chief enemy to the people.\n\nAll:\nWe know't, we know't.\n\nFirst Citizen:\nLet us kill him, and we'll have corn at our own price.\nIs't a verdict?\n\nAll:\nNo more talking on't; let it be done: away, away!\n\nSecond Citizen:\nOne word, good citizens.\n\nFirst Citizen:\nWe are accounted poor citizens, the patricians good.\nWhat authority surfeits on would relieve us: if they\nwould yield us but the superfluity, while it were\nwholesome, we might guess they relieved us humanely;\nbut they think we are too dear: the leanness that\nafflicts us, the object of our misery, is as an\ninventory to particularise their abundance; our\nsufferance is a gain to them Let us revenge this with\nour pikes, ere we become rakes: for the gods know I\nspeak this in hunger for bread, not in thirst for revenge.\n\nSecond Citizen:\nWould you proceed especially against Caius Marcius?\n\nAll:\nAgainst him first: he's a very dog to the commonalty.\n\nSecond Citizen:\nConsider you what services he has done for his country?\n\nFirst Citizen:\nVery well; and could be content to give him good\nreport fort, but that he pays himself with being proud.\n\nSecond Citizen:\nNay, but speak not maliciously.\n\nFirst Citizen:\nI say unto you, what he hath done famously, he did\nit to that end: though soft-conscienced men can be\ncontent to say it was for his country he did it to\nplease his mother and to be partly proud; which he\nis, even till the altitude of his virtue.\n\nSecond Citizen:\nWhat he cannot help in his nature, you account a\nvice in him. You must in no way say he is covetous.\n\nFirst Citizen:\nIf I must not, I need not be barren of accusations;\nhe hath faults, with surplus, to tire in repetition.\nWhat shouts are these? The other side o' the city\nis risen: why stay we prating here? to the Capitol!\n\nAll:\nCome, come.\n\nFirst Citizen:\nSoft! who comes here?\n\nSecond Citizen:\nWorthy Menenius Agrippa; one that hath always loved\nthe people.\n\nFirst Citizen:\nHe's one honest enough: would all the rest were so!\n\nMENENIUS:\nWhat work's, my countrymen, in hand? where go you\nWith bats and clubs? The matter? speak, I pray you.\n\nFirst Citizen:\nOur business is not unknown to the senate; they have\nhad inkling this fortnight what we intend to do,\nwhich now we'll show 'em in deeds. They say poor\nsuitors have strong breaths: they shall know we\nhave strong arms too.\n\nMENENIUS:\nWhy, masters, my good friends, mine honest neighbours,\nWill you undo yourselves?\n\nFirst Citizen:\nWe cannot, sir, we are undone already.\n\nMENENIUS:\nI tell you, friends, most charitable care\nHave the patricians of you. For your wants,\nYour suffering in this dearth, you may as well\nStrike at the heaven with your staves as lift them\nAgainst the Roman state, whose course will on\nThe way it takes, cracking ten thousand curbs\nOf more strong link asunder than can ever\nAppear in your impediment. For the dearth,\nThe gods, not the patricians, make it, and\nYour knees to them, not arms, must help. Alack,\nYou are transported by calamity\nThither where more attends you, and you slander\nThe helms o' the state, who care for you like fathers,\nWhen you curse them as enemies.\n\nFirst Citizen:\nCare for us! True, indeed! They ne'er cared for us\nyet: suffer us to famish, and their store-houses\ncrammed with grain; make edicts for usury, to\nsupport usurers; repeal daily any wholesome act\nestablished against the rich, and provide more\npiercing statutes daily, to chain up and restrain\nthe poor. If the wars eat us not up, they will; and\nthere's all the love they bear us.\n\nMENENIUS:\nEither you must\nConfess yourselves wondrous malicious,\nOr be accused of folly. I shall tell you\nA pretty tale: it may be you have heard it;\nBut, since it serves my purpose, I will venture\nTo stale 't a little more.\n\nFirst Citizen:\nWell, I'll hear it, sir: yet you must not think to\nfob off our disgrace with a tale: but, an 't please\nyou, deliver.\n\nMENENIUS:\nThere was a time when all " <> ...
-```
-
 ```elixir
-batch_size = 4
-sequence_length = 512
-
 tokenized_text = %{"input_ids" => input_ids} = Bumblebee.apply_tokenizer(tokenizer, text)
 n_tokens = Nx.size(input_ids)
 n_train = round(n_tokens * 0.9)
@@ -86,34 +60,6 @@ test_data =
   for {input_key, tokenized_values} <- tokenized_text, into: %{} do
     {input_key, Nx.slice_along_axis(tokenized_values, n_train, n_val, axis: -1)}
   end
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-%{
-  "attention_mask" => #Nx.Tensor<
-    u32[1][33802]
-    EXLA.Backend<host:0, 0.3753376892.1324220432.218331>
-    [
-      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...]
-    ]
-  >,
-  "input_ids" => #Nx.Tensor<
-    u32[1][33802]
-    EXLA.Backend<host:0, 0.3753376892.1324220432.218332>
-    [
-      [18495, 389, 925, 284, 6842, 11, 290, 523, 389, 345, 13, 198, 198, 42, 12599, 1503, 28893, 25, 198, 2949, 884, 474, 671, 355, 345, 11, 611, 502, 345, 1612, 13, 198, 198, 47731, 49, 52, 3398, 9399, 25, 198, 2348, 292, 0, 922, 16693, 11, 314, 481, ...]
-    ]
-  >,
-  "token_type_ids" => #Nx.Tensor<
-    u32[1][33802]
-    EXLA.Backend<host:0, 0.3753376892.1324220432.218333>
-    [
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...]
-    ]
-  >
-}
 ```
 
 ```elixir
@@ -171,12 +117,6 @@ defmodule DataStream do
 end
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-{:module, DataStream, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:get_batch_stream, 4}}
-```
-
 You can see what a single batch looks like by grabbing 1 from the stream:
 
 ```elixir
@@ -191,23 +131,6 @@ IO.puts("=====")
 Bumblebee.Tokenizer.decode(tokenizer, y) |> IO.inspect()
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-[" mean to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward",
- ":\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\n",
- " prophesy that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD III:\nBecause that, like a Jack, thou keep'st the stroke\nBetwixt thy begging and my meditation.\nI am not in the giving vein to-day.\n\nBUCKINGHAM:\nWhy, then resolve me whether you will or no.\n\nKING RICHARD III:\nTut, tut,\nThou troublest me; am not in the vein.\n\nBUCKINGHAM:\nIs it even so? rewards he my true service\nWith such deep contempt made I him king for this?\nO, let me think on Hastings, and be gone\nTo Brecknock, while my fearful head is on!\n\nTYRREL:\nThe tyrannous and bloody deed is done.\nThe most arch of piteous massacre\nThat ever yet this land was guilty of.\nDighton and Forrest, whom I did suborn\nTo do this ruthless piece of butchery,\nAlthough they were flesh'd villains, bloody dogs,\nMelting with tenderness and kind compassion\nWept like two children in their deaths' sad stories.\n'Lo, thus",
- "'s yoke, but let thy dauntless mind\nStill ride in triumph over all mischance.\nBe plain, Queen Margaret, and tell thy grief;\nIt shall be eased, if France can yield relief.\n\nQUEEN MARGARET:\nThose gracious words revive my drooping thoughts\nAnd give my tongue-tied sorrows leave to speak.\nNow, therefore, be it known to noble Lewis,\nThat Henry, sole possessor of my love,\nIs of a king become a banish'd man,\nAnd forced to live in Scotland a forlorn;\nWhile proud ambitious Edward Duke of York\nUsurps the regal title and the seat\nOf England's true-anointed lawful king.\nThis is the cause that I, poor Margaret,\nWith this my son, Prince Edward, Henry's heir,\nAm come to crave thy just and lawful aid;\nAnd if thou fail us, all our hope is done:\nScotland hath will to help, but cannot help;\nOur people and our peers are both misled,\nOur treasures seized, our soldiers put to flight,\nAnd, as thou seest, ourselves in heavy plight.\n\nKING LEWIS XI:\nRenowned queen, with patience calm the storm,\nWhile we bethink a means to break it off.\n\nQUEEN MARGARET:\nThe more we stay, the stronger grows our foe.\n\nKING LEWIS XI:\nThe more I stay, the more I'll succor thee.\n\nQUEEN MARGARET:\nO, but impatience waiteth on true sorrow.\nAnd see where comes the breeder of my sorrow!\n\nKING LEWIS XI:\nWhat's he approacheth boldly to our presence?\n\nQUEEN MARGARET:\nOur Earl of Warwick, Edward's greatest friend.\n\nKING LEWIS XI:\nWelcome, brave Warwick! What brings thee to France?\n\nQUEEN MARGARET:\nAy, now begins a second storm to rise;\nFor this is he that moves both wind and tide.\n\nWARWICK:\nFrom worthy Edward, King of Albion,\nMy lord and sovereign, and thy vowed friend,\nI come, in kindness and unfeigned love,\nFirst, to do greetings to thy royal person;\nAnd then to crave a league of amity;"]
-=====
-" to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward sufficient\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\nWheny that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD " <> ...
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-" to geld and splay all the\nyouth of the city?\n\nESCALUS:\nNo, Pompey.\n\nPOMPEY:\nTruly, sir, in my poor opinion, they will to't then.\nIf your worship will take order for the drabs and\nthe knaves, you need not to fear the bawds.\n\nESCALUS:\nThere are pretty orders beginning, I can tell you:\nit is but heading and hanging.\n\nPOMPEY:\nIf you head and hang all that offend that way but\nfor ten year together, you'll be glad to give out a\ncommission for more heads: if this law hold in\nVienna ten year, I'll rent the fairest house in it\nafter three-pence a bay: if you live to see this\ncome to pass, say Pompey told you so.\n\nESCALUS:\nThank you, good Pompey; and, in requital of your\nprophecy, hark you: I advise you, let me not find\nyou before me again upon any complaint whatsoever;\nno, not for dwelling where you do: if I do, Pompey,\nI shall beat you to your tent, and prove a shrewd\nCaesar to you; in plain dealing, Pompey, I shall\nhave you whipt: so, for this time, Pompey, fare you well.\n\nPOMPEY:\nI thank your worship for your good counsel:\nbut I shall follow it as the flesh and fortune shall\nbetter determine.\nWhip me? No, no; let carman whip his jade:\nThe valiant heart is not whipt out of his trade.\n\nESCALUS:\nCome hither to me, Master Elbow; come hither, Master\nconstable. How long have you been in this place of constable?\n\nELBOW:\nSeven year and a half, sir.\n\nESCALUS:\nI thought, by your readiness in the office, you had\ncontinued in it some time. You say, seven years together?\n\nELBOW:\nAnd a half, sir.\n\nESCALUS:\nAlas, it hath been great pains to you. They do you\nwrong to put you so oft upon 't: are there not men\nin your ward sufficient\nHis name is Romeo, and a Montague;\nThe only son of your great enemy.\n\nJULIET:\nMy only love sprung from my only hate!\nToo early seen unknown, and known too late!\nProdigious birth of love it is to me,\nThat I must love a loathed enemy.\n\nNurse:\nWhat's this? what's this?\n\nJULIET:\nA rhyme I learn'd even now\nOf one I danced withal.\n\nNurse:\nAnon, anon!\nCome, let's away; the strangers all are gone.\n\nChorus:\nNow old desire doth in his death-bed lie,\nAnd young affection gapes to be his heir;\nThat fair for which love groan'd for and would die,\nWith tender Juliet match'd, is now not fair.\nNow Romeo is beloved and loves again,\nAlike betwitched by the charm of looks,\nBut to his foe supposed he must complain,\nAnd she steal love's sweet bait from fearful hooks:\nBeing held a foe, he may not have access\nTo breathe such vows as lovers use to swear;\nAnd she as much in love, her means much less\nTo meet her new-beloved any where:\nBut passion lends them power, time means, to meet\nTempering extremities with extreme sweet.\n\nROMEO:\nCan I go forward when my heart is here?\nTurn back, dull earth, and find thy centre out.\n\nBENVOLIO:\nRomeo! my cousin Romeo!\n\nMERCUTIO:\nHe is wise;\nAnd, on my lie, hath stol'n him home to bed.\n\nBENVOLIO:\nHe ran this way, and leap'd this orchard wall:\nCall, good Mercutio.\n\nMERCUTIO:\nNay, I'll conjure too.\nRomeo! humours! madman! passion! lover!\nAppear thou in the likeness of a sigh:\nSpeak but one rhyme, and I am satisfied;\nCry but 'Ay me!' pronounce but 'love' and 'dove;'\nSpeak to my gossip Venus one fair word,\nOne nick-name for her purblind son and heir,\nYoung Adam Cupid, he that shot so trim,\nWheny that Richmond should be king,\nWhen Richmond was a little peevish boy.\nA king, perhaps, perhaps,--\n\nBUCKINGHAM:\nMy lord!\n\nKING RICHARD III:\nHow chance the prophet could not at that time\nHave told me, I being by, that I should kill him?\n\nBUCKINGHAM:\nMy lord, your promise for the earldom,--\n\nKING RICHARD III:\nRichmond! When last I was at Exeter,\nThe mayor in courtesy show'd me the castle,\nAnd call'd it Rougemont: at which name I started,\nBecause a bard of Ireland told me once\nI should not live long after I saw Richmond.\n\nBUCKINGHAM:\nMy Lord!\n\nKING RICHARD III:\nAy, what's o'clock?\n\nBUCKINGHAM:\nI am thus bold to put your grace in mind\nOf what you promised me.\n\nKING RICHARD III:\nWell, but what's o'clock?\n\nBUCKINGHAM:\nUpon the stroke of ten.\n\nKING RICHARD III:\nWell, let it strike.\n\nBUCKINGHAM:\nWhy let it strike?\n\nKING RICHARD " <> ...
-```
-
 ## Train the model
 
 Now we can go about training the model! First, we need to extract the Axon model and parameters from the Bumblebee model map:
@@ -218,33 +141,11 @@ Now we can go about training the model! First, we need to extract the Axon model
 model
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-#Axon<
-  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
-  outputs: "container_37"
-  nodes: 859
->
-```
-
 The Axon model actually outputs a map with `:logits`, `:hidden_states`, and `:attentions`. You can see this by using `Axon.get_output_shape/2` with an input. This method symbolically executes the graph and gets the resulting shapes:
 
 ```elixir
 [{input, _}] = Enum.take(train_batch_stream, 1)
 Axon.get_output_shape(model, input)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-%{
-  cache: #Axon.None<...>,
-  hidden_states: #Axon.None<...>,
-  attentions: #Axon.None<...>,
-  cross_attentions: #Axon.None<...>,
-  logits: {4, 512, 50257}
-}
 ```
 
 For training LoRA adapters, we'll freeze the original layers, and append adapters to our target nodes
@@ -254,7 +155,7 @@ lora_model =
   model
   |> Axon.freeze()
   |> Lorax.foo(
-    %Lorax.Config{r: 2, lora_alpha: 8, lora_dropout: 0.05},
+    %Lorax.Config{r: r, lora_alpha: lora_alpha, lora_dropout: lora_dropout},
     fn %Axon.Node{name: name_fn, op: _op} ->
       # https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon.ex#L3923
       # names are generated lazily, and look like "decoder.blocks.11.self_attention.value"
@@ -269,16 +170,6 @@ lora_model =
       end
     end
   )
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Axon<
-  inputs: %{"attention_head_mask" => {12, 12}, "attention_mask" => {nil, nil}, "cache" => nil, "input_embeddings" => {nil, nil, 768}, "input_ids" => {nil, nil}, "position_ids" => {nil, nil}}
-  outputs: "container_37"
-  nodes: 895
->
 ```
 
 Now we can declare our training loop. You can construct Axon training loops using the `Axon.Loop.trainer/3` factory method with a model, loss function, and optimizer. We'll also adjust the log-settings to more frequently log metrics to standard out:
@@ -314,21 +205,13 @@ custom_loss_fn = &CommonTrain.custom_loss_fn(&1, &2)
 lora_params =
   {init_fn, custom_predict_fn}
   |> Axon.Loop.trainer(custom_loss_fn, Polaris.Optimizers.adam(learning_rate: 3.0e-4))
-  |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 10000, compiler: EXLA)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-
-19:49:56.396 [debug] Forwarding options: [compiler: EXLA] to JIT compiler
-
+  |> Axon.Loop.run(train_batch_stream, params, epochs: 1, iterations: 1000, compiler: EXLA)
 ```
 
 ## Text Generation
 
 ```elixir
-text = " "
+text = "  "
 
 inputs = Bumblebee.apply_tokenizer(tokenizer, text)
 
@@ -338,7 +221,7 @@ lora_model_info = %{model: lora_model, params: lora_params, spec: spec}
 
 lora_generation_config =
   Bumblebee.configure(generation_config,
-    max_new_tokens: 250,
+    max_new_tokens: 256,
     strategy: %{type: :multinomial_sampling, top_p: 0.6}
   )
 
@@ -348,3 +231,4 @@ serving = Bumblebee.Text.generation(lora_model_info, tokenizer, lora_generation_
 text
 |> IO.puts()
 ```
+
