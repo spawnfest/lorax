@@ -3,7 +3,7 @@
 This package implements Low-Rank Adaptation (LoRA), a popular method for fine-tuning large language models.
 LoRA introduces a more efficient method for adaptation by freezing the original model weights and injecting trainable rank decomposition matrices. This results in a dramatic reduction in the number of parameters needing updates and cuts down on the GPU memory needed, making it a much more affordable and practical solution for users who don’t have access to high-end GPU hardware.
 
-![lora diagram](https://raw.githubusercontent.com/phoenixframework/phoenix/main/priv/static/diagram.png)
+![lora diagram](https://raw.githubusercontent.com/spawnfest/lorax/main/diagram.png)
 
 ## Key Benefits:
 - *Efficiency*: LoRA decreases the number of trainable parameters by up to 10,000 times and reduces GPU memory usage by 3 times compared to traditional fine-tuning methods.
